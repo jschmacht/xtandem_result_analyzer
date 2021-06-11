@@ -6,12 +6,12 @@ import multiprocessing as mp
 
 
 class SearchAccessions:
-    def __init__(self, path_to_file, db):
+    def __init__(self, path_to_db, db):
         """
-        :param path_to_file: path to the peptide database
+        :param path_to_file: path to the protein database
         :param db: database format, 'ncbi' or 'uniprot' )
         """
-        self.path_to_file = Path(path_to_file)
+        self.path_to_file = Path(path_to_db)
         self.db = db
         self.acc_dict = {}
         self.accs = []

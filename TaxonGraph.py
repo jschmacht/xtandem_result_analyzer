@@ -12,7 +12,7 @@ class TaxonGraph():
         self.scientific_alternative_name_dict = {}
         self.child_parent_dict = {}
         self.synonym_taxon_dict = {}
-        self.order = {'no rank': 0, 'varietas': 1, 'forma': 1, 'subspecies': 2, 'species': 3, 'species subgroup': 4,
+        self.order = {'no rank': 0, 'varietas': 1, 'forma': 1, 'subspecies': 2, 'strain':2, 'species': 3, 'species subgroup': 4,
                  'species group': 5, 'series': 6, 'subsection': 7, 'section': 8, 'subgenus': 9, 'genus': 10,
                  'subtribe': 11, 'tribe': 12, 'subfamily': 13, 'family': 14, 'superfamily': 15, 'parvorder': 16,
                  'infraorder': 17, 'suborder': 18, 'order': 19, 'superorder': 20, 'subcohort': 21, 'cohort': 22,
@@ -140,6 +140,15 @@ class TaxonGraph():
                     print("Taxon ID %d has higher level than specified. Unchanged taxon ID %d of level %s is "
                                    "returned." % (taxID, taxID, self.child_rank_dict[taxID]))
                     return taxID
+
+    def get_all_taxids(self, taxonIDs, level):
+        taxids_of_level=[]
+        all_taxids = []
+        for taxon in taxonIDs:
+            taxids_of_level.append(self.find_level_up(taxon, level))
+        for taxon in taxids_of_level:
+            all_taxids.append(self.find_taxIDs(taxon))
+        return all_taxids
 
     # finds the next common ancestror of a set of taxon IDs
     def find_next_common_ancestor(self, taxonIDs):
