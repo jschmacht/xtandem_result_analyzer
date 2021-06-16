@@ -7,6 +7,7 @@ from PSM_FDR import PSM_FDR
 from AccessionSearcher import AccessionSearcherNCBI
 from ReadAccTaxon import ReadAccTaxon
 from SearchAccessions import SearchAccessions
+from collections import defaultdict
 
 
 def read_crap(file):
@@ -173,7 +174,7 @@ def get_group_accessions_ncbi(path_to_taxdump, accs, threads, spectra2accs_dict)
     :param path_to_taxdump: Path to taxdump.tar.gz
     :param accs:
     :param threads:
-    :param spectra2accs_dict: psm.spectra_acc_dict spectrum to [acccs] dict
+    :param spectra2accs_dict: psm.spectra_acc_dict spectrum to [accs] dict
     :return:
     """
     # multispecies_acc: handmade ncbi multispecies acc file: multiacc /t all accs seperated by /t
@@ -190,14 +191,14 @@ def get_group_accessions_ncbi(path_to_taxdump, accs, threads, spectra2accs_dict)
         spectra2accs_dict[key] = group_accessions
     return spectra2accs_dict
 
-def get_acc_taxon_dict(spectra2accs_dict, path, database, threads):
+def get_acc_taxon_dict(spectra2accs_dict, path, db_type, threads):
     accessions = set([item for sublist in spectra2accs_dict.values() for item in sublist])
     print('length accessions: %d' % len(accessions))
-    acc2taxon = ReadAccTaxon(path)
-    if database=='custom':
+    acc2taxon = ReadAccTaxon(path, db_type)
+    if db_type=='custom':
         acc_taxon_dict = acc2taxon.read_custom_acc2tax()
     else:
-        acc_taxon_dict = acc2taxon.read_acc2tax(database, accessions, threads)
+        acc_taxon_dict = acc2taxon.read_acc2tax(accessions, threads)
     print('length acc_taxon_dict: %d' % len(acc_taxon_dict))
     return acc_taxon_dict
 
@@ -232,6 +233,51 @@ def find_psms_per_level(taxon_graph, taxonIDs, spectra2accs_dict, acc_2_taxon_di
     for level in levels[0:level_index + 1]:
         results_per_level.append(determine_species(taxons_identified, taxon_graph, taxonIDs, level))
     return results_per_level, taxons_identified
+
+def load_ref_file(ref_file, level):
+    level_to_column_nb_dict={'species': 4, 'genus': 5, 'family': 6, 'order': 7}
+    spectraID_to_taxid_dict = defaultdict(list)
+    with open(ref_file, 'r') as ref:
+        ref.readline()
+        for line in ref:
+            fields = line.split()
+            level_specific_taxid = fields[level_to_column_nb_dict[level]]
+            spectraID = fields[0]
+            spectraID_to_taxid_dict[spectraID].append(level_specific_taxid)
+    return spectraID_to_taxid_dict
+
+
+def get_all_spectra_IDs(ident_file):
+    all_spec_IDs = set()
+    with open(ident_file, 'r') as ident_file:
+        for line in ident_file:
+            if line.startswith('TITLE'):
+                all_spec_IDs.add(line.split()[0].split('TITLE=')[1])
+    return all_spec_IDs
+
+
+def get_true_positive_and_true_negative(level, x_tandem_result_tsv):
+    ref_file = '/home/jules/Documents/Tax2Proteome/benchmarking/spectra/Run1_U1_2000ng_spectra_ref.tsv'
+    ident_file = '/home/jules/Documents/Tax2Proteome/benchmarking/spectra/Run1_U1_2000ng.mgf'
+    all_spectra_IDs = get_all_spectra_IDs(ident_file)
+    df = pd.read_csv(str(x_tandem_result_tsv +'.csv'))
+    df['taxID_level'] = df['taxID_level'].apply(lambda taxid: taxid[1:-1].split(', '))
+    df['Protein'] = df['Protein'].apply(lambda taxid: taxid[1:-1].split(', '))
+    spectraID_to_taxid_dict = load_ref_file(ref_file, level)
+    df['TP'] = df.apply(lambda row: 'FP' if row['Title'] not in spectraID_to_taxid_dict.keys() else (
+        'TP' if (set(spectraID_to_taxid_dict[row['Title']]) & set(df['taxID_level'])) else ''))
+    number_TN = 0
+    number_FN = 0
+    for spectra in all_spectra_IDs:
+        if spectra not in df['Title'] and spectra not in spectraID_to_taxid_dict.keys():
+            number_TN += 1
+        if spectra not in df['Title'] and spectra in spectraID_to_taxid_dict.keys():
+            number_FN += 1
+    number_TP = df[df['TP'] == 'TP'].count()
+    number_FP = df[df['TP'] == 'FP'].count()
+    print(f"TP: {number_TP}, FP: {number_FP}, TN: {number_TN}, FN: {number_FN}")
+
+
 
 
 def main():
@@ -313,7 +359,8 @@ def main():
     psm = PSM_FDR(x_tandem_result_tsv)
     psm.create_PSM_dataframe(decoy_tag, db_type, options.level, taxon_graph, acc2tax_dict=acc_2_taxon_dict)
     psm.determine_FDR_position(options.fdr)
-
+    # only identifications above fdr: x_tandem_result_tsv[0:psm.fdr_pos]
+    get_true_positive_and_true_negative(options.level, x_tandem_result_tsv[0:psm.fdr_pos])
        # if path_to_uniprot_nr and db_type == 'uniprot':
         #    multiacc_search_nr = SearchAccessions(path_to_uniprot_nr, 'uniprot')
          #   multiacc_search_nr.read_database(psm.spectra_acc_dict.values(), options.threads)

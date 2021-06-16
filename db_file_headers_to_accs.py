@@ -24,7 +24,21 @@ species_to_tax_dict_2 = {'Pseudomonas fluorescens ATCC 13525': 294,
                          'Pseudomonas pseudoalcaligenes KF707': 1149133,
                          'Chlamydomonas reinhardtii': 3055,
                          'Staphylococcus aureus subsp. aureus': 1280,
-                         'Nitrososphaera viennensis EN76': 926571}
+                         'Nitrososphaera viennensis EN76': 926571,
+                         'Rhizobium leguminosarum': 384,
+                         'Stenotrophomonas maltophilia': 40324,
+                         'Stenotrophomonas maltophilia SeITE02': 1407502}
+species_to_tax_dict_metagenome_seq = {'Chromobacterium violaceum CV026': 536, # parent: 536
+                         'Staphylococcus aureus ATCC 13709': 1280, #Staphylococcus aureus subsp. aureus NCTC 8325: 93061, parent: 1280
+                         'Paracoccus denitrificans JCM 21484': 1302247,
+                        'Roseobacter sp. AK199': 1907202} # species: Roseobacter sp.
+multispecies_to_species_dict ={'Stenotrophomonas' : 'Stenotrophomonas maltophilia SeITE02',
+                               'Proteobacteria': 'Stenotrophomonas maltophilia SeITE02', # this might be uncorrect
+                               'Xanthomonadaceae': 'Stenotrophomonas maltophilia SeITE02',
+                               'Rhizobium': 'Rhizobium leguminosarum',
+                               'Rhizobiaceae': 'Rhizobium leguminosarum',
+                               'Rhizobiales': 'Rhizobium leguminosarum',
+                               'Rhizobium/Agrobacterium group': 'Rhizobium leguminosarum'}
 uniprot_set=set()
 acc_set=set()
 ncbi_acc_set=set()
@@ -37,10 +51,24 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                     continue
                 if line.startswith('>'):
                     acc0=line.split()[0][1:]
-                    # uniprot_acc
+
+                    # CRAP
                     if line.split()[0].startswith('>CRAP'):
                         acc = line.split()[0][1:]
                         tax_output.write('CRAP'+ '\t' + acc.strip() + '\t' + acc + '\t' + 'crap' + '\t' + '0'+ '\n')
+                    # metagenome
+                    elif re.search(r'_peg.', line.split()[0]):
+                        acc = line.split()[0][1:]
+                        if acc.startswith('137'):
+                            species='Staphylococcus aureus ATCC 13709'
+                        elif acc.startswith('CV'):
+                            species = 'Chromobacterium violaceum CV026'
+                        elif acc.startswith('PaD'):
+                            species = 'Paracoccus denitrificans JCM 21484'
+                        elif acc.startswith('AK199'):
+                            species = 'Paracoccus denitrificans JCM 21484'
+                        tax_output.write('meta_seq'+ '\t' + acc.strip() + '\t' + acc + '\t' + species + '\t' + str(species_to_tax_dict_metagenome_seq[species])+ '\n')
+                    # uniprot_acc
                     elif re.search(r'OS=.+ GN=', line):
                         species = re.search(r'OS=(.+) GN=', line).group(1)
                         acc=line.split()[1]
@@ -51,16 +79,26 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         tax_output.write('uniprot'+ '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict[species])+ '\n')
                     elif '_WP_' in line.split()[0]:
                         acc = re.search(r'>.*_(WP_.*)', line.split()[0]).group(1)
-                        tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc.strip()  + 'unknown_species' + '\t' + str(0)+ '\n')
+                        try:
+                            species = re.search(r'\[(.*)\]', line).group(1)
+                            if ']' in species:
+                                species = re.search(r'\[.*\].*\[(.*)\]', line).group(1)
+                            if 'MULTISPECIES' in line:
+                                species = multispecies_to_species_dict[species]
+                            tax_output.write('ncbi_multispecies' + '\t' + acc.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict_2[species])+ '\n')
+                        except KeyError:
+                            # entries of type >SMS_WP_001878988.1 MULTISPECIES: hypothetical protein [Bacteria], not longer annotated to any genome
+                            tax_output.write('outdated' + '\t' + acc.strip()  + '\t' + acc.strip()  + '\t' + 'no_species' + '\t' + str(0)+ '\n')
+                            pass
                     elif '_NP_' in line.split()[0]:
                         acc = re.search(r'>.*_(NP_.*)', line.split()[0]).group(1)
-                        tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc.strip()  + 'unknown_species' + '\t' + str(0)+ '\n')
-                    elif 'SEED' in line:
-                        acc = line.split()[0][1:]
-                        tax_output.write('custom' + '\t' + acc0.strip() + '\t' + acc.strip() + 'unknown_species' + '\t' + str(0)+ '\n')
-                    elif len(line.split())==1:
+                        tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc.strip() + 'unknown_species' + '\t' + str(0)+ '\n')
+                  #  elif 'SEED' in line:
+                   #     acc = line.split()[0][1:]
+                    #    tax_output.write('custom' + '\t' + acc0.strip() + '\t' + acc.strip() + 'unknown_species' + '\t' + str(0)+ '\n')
+                    elif len(line.split()) == 1:
                         acc = line[1:]
-                        tax_output.write('custom' + '\t' + acc0.strip() + '\t' + acc.strip()  + 'unknown_species' + '\t' + str(0)+ '\n')
+                        tax_output.write('custom' + '\t' + acc0.strip() + '\t' + acc.strip() + '\t' + 'unknown_species' + '\t' + str(0)+ '\n')
                     elif re.search(r'\[(.+)\]', line):
                         species = re.search(r'\[(.+)\]', line).group(1)
                         if '[' in species:

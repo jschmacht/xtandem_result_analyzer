@@ -3,6 +3,7 @@ import pandas as pd
 import argparse
 import pickle
 from collections import defaultdict
+from handling_acc_files import Multiaccs
 
 class PSM_FDR:
     def __init__(self, path_to_file):
@@ -35,7 +36,14 @@ class PSM_FDR:
                                                 if row['Protein'].split('|')[1] in acc2tax_dict else 'DECOY',
                                                                            axis=1)
         elif db_type == 'ncbi':
-            self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df.apply(lambda row: row['Protein'].split('|')[2].split(), axis=1)
+            path_to_multiacc_file = '/home/jules/Documents/databases/databases_tax2proteome/multispecies_acc'
+            path_to_multiaccs_taxids_file = '/home/jules/Documents/databases/databases_tax2proteome/multispeciesacc_taxa'
+            multi_acc_object = Multiaccs(path_to_multiacc_file, path_to_multiaccs_taxids_file)
+            print(self.sorted_xtandem_df['Protein'][0:5])
+            # Multiaccs in Protein column: 'PNW76085.1 BAB64417.1 BAB64413.1 XP_001693987.1'
+            self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df['Protein'].apply(lambda acc: acc if not
+                                            multi_acc_object.is_multiacc(acc) else multi_acc_object.get_multiacc(acc))
+            self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df.apply(lambda row: row['Protein'].split('|')[2].strip(), axis=1)
             self.sorted_xtandem_df['taxID'] = self.sorted_xtandem_df.apply(lambda row:
                                                                            acc2tax_dict[row['Protein']]
                                                                            if row['Protein'] in acc2tax_dict else 'DECOY',
@@ -54,6 +62,9 @@ class PSM_FDR:
         reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
             {'Protein': lambda x: set(x), 'EValue': lambda x: set(list(x)), 'decoy': lambda x: set(x),
             'taxID': lambda x: set(x), 'taxID_level': lambda x: set(x)})
+        # change spectra Title
+        reduced_df['Title'] = reduced_df['Title'].apply(lambda row: row.split(' File')[0])
+
         print('reduced df')
         reduced_df = reduced_df.sort_values(by=['Hyperscore', 'Title'], ascending=False).reset_index(drop=True)
         print(f"writing data frame to {self.path_to_file+'.csv'}... ")
