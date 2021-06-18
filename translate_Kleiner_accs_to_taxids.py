@@ -1,5 +1,6 @@
 import re
 
+# translate Kleiner reference database
 species_to_tax_dict = {'Enterobacteria phage ES18': 101570,
                        'Enterobacteria phage P22':  10754,
                        'Salmonella phage Felix O1 (isolate Felix O1-VT1)': 1283336,
@@ -77,19 +78,19 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         species = re.search(r'OS=(.+) PE=', line).group(1)
                         acc=line.split()[1]
                         tax_output.write('uniprot'+ '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict[species])+ '\n')
-                    elif '_WP_' in line.split()[0]:
-                        acc = re.search(r'>.*_(WP_.*)', line.split()[0]).group(1)
-                        try:
-                            species = re.search(r'\[(.*)\]', line).group(1)
-                            if ']' in species:
-                                species = re.search(r'\[.*\].*\[(.*)\]', line).group(1)
-                            if 'MULTISPECIES' in line:
-                                species = multispecies_to_species_dict[species]
-                            tax_output.write('ncbi_multispecies' + '\t' + acc.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict_2[species])+ '\n')
-                        except KeyError:
-                            # entries of type >SMS_WP_001878988.1 MULTISPECIES: hypothetical protein [Bacteria], not longer annotated to any genome
-                            tax_output.write('outdated' + '\t' + acc.strip()  + '\t' + acc.strip()  + '\t' + 'no_species' + '\t' + str(0)+ '\n')
-                            pass
+                    elif '_WP_' in acc0:
+                        print(acc0)
+                        if acc0.startswith('SMS'):
+                            species = 'Stenotrophomonas maltophilia'
+                            taxid = species_to_tax_dict_2[species]
+                            tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
+                        elif acc0.startswith('VF'):
+                            species = 'Rhizobium leguminosarum bv. viciae VF39'
+                            taxid = species_to_tax_dict['Rhizobium leguminosarum bv. viciae (strain 3841)']
+                            tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
+                        else:
+                            print('not in ref: ', acc)
+
                     elif '_NP_' in line.split()[0]:
                         acc = re.search(r'>.*_(NP_.*)', line.split()[0]).group(1)
                         tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc.strip() + 'unknown_species' + '\t' + str(0)+ '\n')
@@ -112,7 +113,7 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         try:
                             acc = line.split()[0][1:]
                             if '_XP_' in line.split()[0]:
-                                tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict_2[species])+ '\n')
+                                tax_output.write('ncbi' + '\t' + acc0.strip() + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict_2[species])+ '\n')
                             else:
                                 tax_output.write('unknown' + '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict_2[species])+ '\n')
                         except KeyError:

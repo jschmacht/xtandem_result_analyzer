@@ -18,7 +18,7 @@ class ReadAccTaxon:
     @staticmethod
     def get_acc2taxonID_dict(path_to_db):
         """
-        preotein accession to taxon ID from custom db file
+        protein accession to taxon ID from custom db file
         :param path_to_db:
         :return:
         """
@@ -95,10 +95,14 @@ class ReadAccTaxon:
 
     # read uniprot_acc2tax or NCBI accession2taxid file and put matches in acc_dict with accession as key
     def read_acc2tax(self, accessions, threads=None):
+        """
+        :param accessions: set of protein accs, not list!!! (runtime explodes)
+        :param threads:
+        :return:
+        """
         acc_taxon_dict={}
         global accs
         accs = accessions
-
         if not threads:
             threads = mp.cpu_count()
         pool = mp.Pool(threads)

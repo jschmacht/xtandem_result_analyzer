@@ -1,6 +1,8 @@
 from pathlib import Path
 from ReadAccTaxon import ReadAccTaxon
+from TaxonGraph import TaxonGraph
 from SearchAccessions import SearchAccessions
+import pickle
 
 class Multiaccs():
     def __init__(self, path_to_multiacc_file, path_to_multiaccs_taxids_file):
@@ -18,11 +20,9 @@ class Multiaccs():
                 multiaccs_to_taxid_dict[fields[0]] = fields[1:]
         return multiaccs_to_taxid_dict
 
-    def is_multiacc(self, acc):
-        if any(self.multiacc_marks) in acc or '...' in acc:
-            return True
-        else:
-            return False
+    def is_multiacc(self, acc, multi_acc_dict):
+        return True if acc in multi_acc_dict.keys() else False
+
 
     def get_multiacc(self, acc):
         accs = acc.split()
@@ -56,3 +56,40 @@ class Multiaccs():
                     accessions = accessions.union(set(line.split()))
                     multiacc_tax.write(multiacc + '\t' + ('\t').join(accessions))
         print('all marks', all_marks)
+
+class HelperMethod():
+
+    @staticmethod
+    def load_taxa_graph(path_to_taxdump):
+        """
+        # Try load pre-builded taxonomy graph or built taxonomy graph now
+        :param options: user input options
+        :return: TaxonGraph object
+        """
+
+        if not (path_to_taxdump.parents[0] / 'taxon_graph_results').is_file():
+            taxon_graph = TaxonGraph()
+            print("Start building taxon graph.")
+            taxon_graph.create_graph(str(path_to_taxdump))
+            print("Taxon graph successfully build.")
+            # save TaxonGraph to harddrive:
+            try:
+                with open(str(path_to_taxdump.parents[0] / 'taxon_graph_results'), 'wb') as handle:
+                    pickle.dump(taxon_graph, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    print('Safe taxon graph to location: %s' % str(
+                        path_to_taxdump.parents[0] / 'taxon_graph_results'))
+            except FileNotFoundError:
+                print('Error open tax_graph.')
+                exit(1)
+        # load Taxon Graph
+        else:
+            try:
+                print('Load taxon graph from harddrive.')
+                with open(str(path_to_taxdump.parents[0] / 'taxon_graph_results'), 'rb') as handle:
+                    taxon_graph = pickle.load(handle)
+            except UnicodeDecodeError or EOFError:
+                print(
+                    "Failed opening path to taxon graph / taxon_graph is corrupted. Delete %s file."
+                    % str(path_to_taxdump.parents[0] / 'taxon_graph'))
+                exit(1)
+        return taxon_graph
