@@ -7,7 +7,7 @@ import pickle
 
 class ReferenceWriter():
 
-    def __init__(self, path_to_file, path_to_tax, path_to_output, path_to_taxdump):
+    def __init__(self, path_to_file, path_to_tax, path_to_output, taxon_graph):
         """
         :param path_to_file: path to multiaccession file generated from NCBI-nr database
         one line one header with all accessions seperated by \t
@@ -15,9 +15,8 @@ class ReferenceWriter():
         self.path_to_xml = path_to_file
         self.output = Path(path_to_output)
         self.path_to_tax = Path(path_to_tax)
-        self.path_to_taxdump = Path(path_to_taxdump)
+        self.taxon_graph = taxon_graph
         self.tax_level = ['species', 'genus', 'family', 'order']
-        self.taxon_graph = self.load_taxa_graph()
 
     def read_pepXML(self):
         reader = pepxml.PepXML(source=str(self.path_to_xml), use_index=True, retrieve_refs=False, iterative=True)
@@ -94,33 +93,62 @@ class ReferenceWriter():
 
         print('writing ...')
         with open(self.output, 'w') as output:
-            output.write('SpectraID' + '\t' + 'ProteinAcc' + '\t' + 'Hyperscore' + '\t' + 'taxID_DB' + '\t'
-                         + ('\t').join('taxid_' + level for level in self.tax_level) + '\n')
+            output.write('SpectraID' + '\t' + 'Ref_ProteinAcc' + '\t' + 'Ref_Hyperscore' + '\t' + 'Ref_taxID_DB' + '\t'
+                         + ('\t').join('Ref_taxid_' + level for level in self.tax_level) + '\n')
             for spectra, protein_list in spectra_to_accs_dict.items():
                 level_specific_taxids = []
                 for protein in protein_list:
                     taxid = acc_to_tax_dict[protein[0]]
                     if not level_specific_taxids:
                         level_specific_taxids = self.determine_level_specific_taxIDs(taxid)
-                        level_specific_taxids = [{taxid} for taxid in level_specific_taxids]
+                        level_specific_taxids = [{int(taxid)} for taxid in level_specific_taxids]
                     else:
                         l = self.determine_level_specific_taxIDs(taxid)
                         for i, taxid in enumerate(l):
-                            level_specific_taxids[i].add(taxid)
-                list_of_tax_str = [(', ' ).join(str(taxids)) for taxids in level_specific_taxids]
+                            level_specific_taxids[i].add(int(taxid))
+                list_of_tax_str = [(', ' ).join([str(taxid) for taxid in taxid_set]) for taxid_set in level_specific_taxids]
                 output.write('Run1_' + spectra + '\t' + protein[0] + '\t' + str(protein[1]) + '\t' +
                                   ('\t' ).join(list_of_tax_str) + '\n')
 
     @staticmethod
-    def write_result_spectrum_reference_file(path_to_result, levels, taxon_graph, path_to_refernce):
-        result_df = pd.read_csv(str(path_to_result), sep='\t')
+    def write_result_spectrum_reference_file(path_to_result, levels, taxon_graph, path_to_reference, fdr_pos):
+        def get_taxa_of_level(taxon_graph, taxa_set, level):
+            taxa_set_of_specified_level = set()
+            for taxon in taxa_set:
+                if taxon == 0 or taxon == "'DECOY'":
+                    taxa_set_of_specified_level.add(0)
+                else:
+                    taxa_set_of_specified_level.add(taxon_graph.find_level_up(taxon, level))
+            return taxa_set_of_specified_level
+
+        def flatten_set(s):
+            return {item for subset in s for item in subset}
+
+        result_df = pd.read_csv(str(path_to_result), sep='\t')[0:fdr_pos]
+        # remove all Decoys
+        result_df = result_df[result_df.decoy != "'DECOY'"]
         reference_df = result_df[['Title', 'Peptide', 'Hyperscore', 'Protein', 'decoy', 'taxID']]
         #rename columns
         reference_df.columns = ['SpectraID', 'Ref_Peptide', 'Ref_Hyperscore', 'Ref_ProteinAcc', 'Ref_decoy', 'Ref_taxID_DB']
+        reference_df['Ref_taxID_DB'] = reference_df['Ref_taxID_DB'].apply(lambda taxid_set: {int(taxon) for taxon in taxid_set[1:-1].split(', ') if taxon != "'DECOY'"})
+        reference_df['Ref_decoy'] = reference_df['Ref_decoy'].apply(lambda decoy_set: {bool(decoy) for decoy in decoy_set[1:-1].split(', ')})
         for level in levels:
-            reference_df[f'Ref_taxID_{level}'] = reference_df['taxID_DB'].apply(lambda taxid: taxon_graph.find_level_up(taxid, level))
-        print(f"writing refernce data frame to {path_to_refernce}... ")
-        reference_df.to_csv(path_to_refernce, sep='\t')
+            reference_df[f'Ref_taxID_{level}'] = reference_df['Ref_taxID_DB'].apply(lambda taxid_set: get_taxa_of_level(taxon_graph, taxid_set, level))
+
+        # merge all results for one spectrum
+        reduced_df = reference_df.groupby(["SpectraID"], as_index=False).agg(
+            {'Ref_Peptide': lambda acc: set(acc),
+             'Ref_Hyperscore': lambda x: set(list(x)),
+             'Ref_ProteinAcc': lambda acc_strings: flatten_set([set(acc_string[1:-1].split(', ')) for acc_string in acc_strings]),
+             'Ref_decoy': lambda decoy_sets: flatten_set(decoy_sets),
+             'Ref_taxID_DB': lambda taxid_sets: flatten_set(taxid_sets),
+             'Ref_taxID_species': lambda taxid_sets: flatten_set(taxid_sets),
+             'Ref_taxID_genus': lambda taxid_sets: flatten_set(taxid_sets),
+             'Ref_taxID_family': lambda taxid_sets: flatten_set(taxid_sets),
+             'Ref_taxID_order': lambda taxid_sets: flatten_set(taxid_sets),
+             })
+        print(f"writing refernece data frame to {path_to_reference}... ")
+        reduced_df.to_csv(path_to_reference, sep='\t')
 
     def write_reduced_spectrum_reference_file(self, spectra_to_accs_dict):
         acc_to_tax_dict = self.read_acc_to_taxid_file()

@@ -11,7 +11,7 @@ class PSM_FDR:
         :param path_to_file: path to xtandem output .xml converted to tsv
         one line one header with all accessions seperated by \t
         """
-        self.path_to_file = path_to_file
+        self.path_to_file = Path(path_to_file)
         self.sorted_xtandem_df = None
         self.spectra_acc_dict = defaultdict(list)
         self.spectra_sequence_dict = {}
@@ -21,8 +21,6 @@ class PSM_FDR:
 
     def flatten_set(self, s):
         flatten_set = {item for sublist in s for item in sublist}
-        print(s)
-        print(flatten_set)
         return flatten_set
 
     def flatten_sets_to_one_set(self, *sets):
@@ -31,10 +29,9 @@ class PSM_FDR:
             result_set.union(s)
         return result_set
 
-
-    def add_level_specific_taxid_column_and_group(self, taxon_graph, level):
+    def add_level_specific_taxid_column_and_group_df(self, taxon_graph, level):
         self.sorted_xtandem_df[f'taxID_{level}'] = self.sorted_xtandem_df.apply(lambda row:
-                                                taxon_graph.find_level_up(int(row['taxID']), level)
+                                                taxon_graph.find_level_up(row['taxID'], level)
                                                 if row['taxID'] != 'DECOY' and row['taxID'] != 0 else 'DECOY',
                                                                                 axis=1)
         reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
@@ -46,49 +43,61 @@ class PSM_FDR:
     def create_PSM_dataframe_for_uniprot_accs(self, acc2tax_dict, taxon_graph, level):
         self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df.apply(lambda row: row['Protein'].split()[0], axis=1)
         self.sorted_xtandem_df['taxID'] = self.sorted_xtandem_df.apply(lambda row:
-                                                                       acc2tax_dict[row['Protein'].split('|')[1]]
+                                                                       int(acc2tax_dict[row['Protein'].split('|')[1]])
                                                                        if row['Protein'].split('|')[1] in acc2tax_dict else 'DECOY',
                                                                        axis=1)
-        reduced_df = self.add_level_specific_taxid_column_and_group(taxon_graph, level)
+        reduced_df = self.add_level_specific_taxid_column_and_group_df(taxon_graph, level)
         return reduced_df
 
-    def create_PSM_dataframe_for_ncbi_accs(self, acc2tax_dict, taxon_graph, level):
+    def get_first_acc(self, acc, decoy_tag):
+        if not acc.startswith('generic'):
+            return acc
+        decoy = True if decoy_tag in acc else False
+        if decoy:
+            return acc.split('|', maxsplit=2)[2].split()[0] + '_' + decoy_tag
+        else:
+            return acc.split('|', maxsplit=2)[2].split()[0]
+
+    def create_PSM_dataframe_for_ncbi_accs(self, acc2tax_dict, taxon_graph, level, decoy_tag):
         pd.set_option("display.max_rows", None, "display.max_columns", None)
         # Multiaccs in Protein column: 'PNW76085.1 BAB64417.1 BAB64413.1 XP_001693987.1'
-        self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df['Protein'].apply(lambda acc: acc.split('|')[2]
-                                                                                    .split()[0] if acc.startswith('generic') else acc)
+        self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df['Protein'].apply(lambda acc: self.get_first_acc(acc, decoy_tag))
+
         self.sorted_xtandem_df['taxID'] = self.sorted_xtandem_df['Protein'].apply(lambda acc:
-                                                                                  acc2tax_dict[acc] if acc in acc2tax_dict.keys() else {'DECOY'} )
+                                                                                  acc2tax_dict[acc] if acc in acc2tax_dict.keys() else {'DECOY/CRAP'} )
         # 'Protein': generic|AC:4260012|KKY45073.1 WP_046834534.1, generic|AC:6172351|WP_086660554.1 ...
         # NCBI: 'taxID': {83334}, {562}
-        print(self.sorted_xtandem_df['taxID'][0:5])
         self.sorted_xtandem_df[f'taxID_{level}'] = self.sorted_xtandem_df['taxID'].apply(lambda taxID_set:
                                                                                          {taxon_graph.find_level_up(int(taxID), level)
-                                                                                          if taxID != 'DECOY' and taxID != 0 else 'DECOY'
+                                                                                          if taxID != 'DECOY'
+                                                                                             and taxID != 'DECOY/CRAP'
+                                                                                             and int(taxID) != 0
+                                                                                          else 'DECOY/CRAP'
                                                                                           for taxID in taxID_set})
-        print(self.sorted_xtandem_df[f'taxID_{level}'][0:5])
-        print(self.sorted_xtandem_df.head())
+        print('sorted_xtandem_df head: ', self.sorted_xtandem_df.head())
         reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
             {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda decoy: set(decoy),
              'taxID': lambda taxid_sets: self.flatten_set(taxid_sets),
              f'taxID_{level}': lambda taxid_sets: self.flatten_set(taxid_sets)})
-        print(reduced_df.head())
+        print('reduced_df head: ', reduced_df.head())
         return reduced_df
 
     def create_PSM_dataframe_for_custom_accs(self, acc2tax_dict, decoy_tag, taxon_graph, level):
         self.sorted_xtandem_df['taxID'] = self.sorted_xtandem_df.apply(lambda row:
                                                                        acc2tax_dict[row['Protein'].strip()]
                                                                        if not decoy_tag in row['Protein'] else 'DECOY', axis=1)
-        reduced_df = self.add_level_specific_taxid_column_and_group(taxon_graph, level)
+        reduced_df = self.add_level_specific_taxid_column_and_group_df(taxon_graph, level)
         return reduced_df
 
-    def create_PSM_dataframe(self, decoy_tag, db_type, level=None, taxon_graph=None, acc2tax_dict=None, multiaccs_dict=None):
+    def create_PSM_dataframe(self, decoy_tag, db_type, level=None, taxon_graph=None, acc2tax_dict=None):
         """
 
         :return: Hyperscore sorted dataframe, Protein with highest Hyperscore first, Title = spectra_file_spectraID
         """
         xtandem_df = pd.read_csv(str(self.path_to_file), delimiter='\t')
         xtandem_df['Protein'] = xtandem_df['Protein'].apply(lambda acc: acc.strip())
+        # change spectra Title
+        xtandem_df['Title'] = xtandem_df['Title'].apply(lambda row: row.split(' File')[0])
         print('Sorting panda dataframe by hyperscore. Find taxa, and level taxa')
         self.sorted_xtandem_df = xtandem_df.sort_values(by=['Hyperscore', 'Title'], ascending=False).reset_index(drop=True)
         self.sorted_xtandem_df['decoy'] = self.sorted_xtandem_df.apply(lambda row: True if decoy_tag in row['Protein'] else False, axis=1)
@@ -96,23 +105,25 @@ class PSM_FDR:
         if db_type == 'uniprot':
             reduced_df = self.create_PSM_dataframe_for_uniprot_accs(acc2tax_dict, taxon_graph, level)
         elif db_type == 'ncbi':
-            reduced_df = self.create_PSM_dataframe_for_ncbi_accs(acc2tax_dict, taxon_graph, level)
+            reduced_df = self.create_PSM_dataframe_for_ncbi_accs(acc2tax_dict, taxon_graph, level, decoy_tag)
         elif db_type == 'custom':
             reduced_df = self.create_PSM_dataframe_for_custom_accs(acc2tax_dict, decoy_tag, taxon_graph, level)
 
-        # change spectra Title
-        reduced_df['Title'] = reduced_df['Title'].apply(lambda row: row.split(' File')[0])
         # sort by Hyperscore
         reduced_df = reduced_df.sort_values(by=['Hyperscore', 'Title'], ascending=False).reset_index(drop=True)
-        print(f"writing data frame to {self.path_to_file+'.tsv'}... ")
-        reduced_df.to_csv(self.path_to_file+'.tsv', sep='\t')
-        print(f'entries in df: {len(self.sorted_xtandem_df)} '
-              f'decoys in df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==True])} '
-              f'hits in df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==False])}')
+        print(f"writing data frame to {self.path_to_file.parent.joinpath(self.path_to_file.stem + '_reduced.tsv')}... ")
+        reduced_df.to_csv(str(self.path_to_file.parent.joinpath(self.path_to_file.stem + '_reduced.tsv')), sep='\t')
+        print(f'entries in sorted df: {len(self.sorted_xtandem_df)} '
+              f'decoys in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==True])} '
+              f'hits in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==False])}')
+        print(f'entries in reduced_df: {len(reduced_df)} '
+              f'decoys in reduced_df: {len(reduced_df[reduced_df.decoy=={True}])} '
+              f'hits in reduced_df: {len(reduced_df[reduced_df.decoy=={False}])} '
+              f'mixed in reduced_df: {len(reduced_df[reduced_df.decoy=={False, True}])}')
         return reduced_df
 
     @staticmethod
-    def determine_FDR_position(sorted_xtandem_df, fdr):
+    def determine_FDR_position(sorted_xtandem_df, fdr, is_decoy_column_set):
         """
         :param decoy_tag: tag of decoy entries, for example REVERSED
         :param fdr: false discovery rate, for example 0.01
@@ -130,26 +141,28 @@ class PSM_FDR:
                 continue
             else:
                 title_set.add(elem[0])
-            if elem[1]:
-                decoy += 1
+            if not is_decoy_column_set:
+                if elem[1]:
+                    decoy += 1
+                else:
+                    hits += 1
             else:
-                hits += 1
+                ## TODO or elem[1] == {TRUE} ? what to do with mixed
+                if True in elem[1]:
+                    decoy += 1
+                else:
+                    hits += 1
             if decoy / (hits + decoy) > fdr and FDR_position_not_set:
                 fdr_pos = hits + decoy - 1 + number_multiple_identified_spectra
                 number_psms = hits
                 decoys = decoy - 1
-                FDR_position_not_set = False
                 break
             if decoy / (hits + decoy) <= fdr:
                 continue
-                #and not FDR_position_not_set:
-                # self.fdr_pos = hits + decoy + number_multiple_identified_spectra
-                # self.number_psms = hits
-                # self.decoys = decoy - 1
-                # FDR_position_not_set = True
+        # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
         print('Number of PSMs: %d' % number_psms)
         print('Number of decoys: %d' % decoys)
-        print(f"double identified spetra {number_multiple_identified_spectra}")
+        print(f"double identified spectra {number_multiple_identified_spectra}")
         print('Position FDR border/Number of PSMs: %d' % fdr_pos)
         return fdr_pos, number_psms, decoys
 

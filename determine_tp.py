@@ -83,6 +83,15 @@ class DeterminatorSpecificitySensitivity():
         print(f"TP: {number_TP}, FP: {number_FP}, TN: {number_TN}, FN: {number_FN}")
 
 
+def get_decoy_set(decoy_str):
+    if 'False' in decoy_str and 'True' in decoy_str:
+        return {True, False}
+    elif 'True' in decoy_str:
+        return {True}
+    elif 'False' in decoy_str:
+        return {False}
+
+
 def main():
     parser = argparse.ArgumentParser(description='Read xtandem output .tsv')
     parser.add_argument('-i', '--input', dest='input', default=None, help='xtandem tsv.tsv with columns:'
@@ -105,18 +114,21 @@ def main():
     taxon_graph = HelperMethod.load_taxa_graph(Path(options.tax_graph))
     path_to_result = Path(options.input)
     path_to_reference = Path(options.reference)
-
     if options.create_reference and path_to_result.suffixes == ['.pep', '.xml']:
         custom_acc2tax_file_based_on_Kleiner_DB = '/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/acc2tax_custom'
-        path_to_output = '/home/jules/Documents/Tax2Proteome/benchmarking/spectra/Run1_U1_2000ng_spectra_taxa_reference_based_on_Kleiner_results.tsv'
-        reader = ReferenceWriter(path_to_result, custom_acc2tax_file_based_on_Kleiner_DB, path_to_output, options.tax_graph)
+        reader = ReferenceWriter(path_to_result, custom_acc2tax_file_based_on_Kleiner_DB, path_to_reference, taxon_graph)
         spectra_to_accs_dict = reader.read_pepXML()
         reader.write_Kleiner_spectrum_reference_file(spectra_to_accs_dict)
-    elif options.create_reference and path_to_result.suffix == 'tsv':
-        ReferenceWriter.write_result_spectrum_reference_file(path_to_result, ['species', 'genus', 'family', 'order'], taxon_graph, path_to_reference)
+    elif options.create_reference and path_to_result.suffix == '.tsv':
+        reduced_df = pd.read_csv(str(path_to_result), sep='\t')
+        reduced_df['decoy']= reduced_df['decoy'].apply(lambda decoy_str: get_decoy_set(decoy_str) )
+        psm = PSM_FDR('')
+        fdr_pos, number_psms, decoys = psm.determine_FDR_position(reduced_df, options.fdr, True)
+        ReferenceWriter.write_result_spectrum_reference_file(path_to_result, ['species', 'genus', 'family', 'order'], taxon_graph, path_to_reference, fdr_pos)
 
     else:
-        path_to_all_info_tsv = path_to_result + f'_{path_to_reference.stem}'
+        path_to_all_info_tsv = path_to_result.parent.joinpath(path_to_result.stem + '_' + path_to_reference.stem + '.tsv')
+        print(path_to_all_info_tsv)
         result_df = pd.read_csv(str(options.input), sep='\t')
         reference_df = pd.read_csv(str(options.reference), sep='\t')
         psm = PSM_FDR(options.input)

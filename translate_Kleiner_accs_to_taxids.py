@@ -78,19 +78,18 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         species = re.search(r'OS=(.+) PE=', line).group(1)
                         acc=line.split()[1]
                         tax_output.write('uniprot'+ '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict[species])+ '\n')
-                    elif '_WP_' in acc0:
-                        print(acc0)
-                        if acc0.startswith('SMS'):
-                            species = 'Stenotrophomonas maltophilia'
-                            taxid = species_to_tax_dict_2[species]
-                            tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
-                        elif acc0.startswith('VF'):
-                            species = 'Rhizobium leguminosarum bv. viciae VF39'
-                            taxid = species_to_tax_dict['Rhizobium leguminosarum bv. viciae (strain 3841)']
-                            tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
-                        else:
-                            print('not in ref: ', acc)
-
+                    elif acc0.startswith('SMS'):
+                        species = 'Stenotrophomonas maltophilia'
+                        taxid = species_to_tax_dict_2[species]
+                        tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
+                    elif acc0.startswith('VF'):
+                        species = 'Rhizobium leguminosarum bv. viciae VF39'
+                        taxid = species_to_tax_dict['Rhizobium leguminosarum bv. viciae (strain 3841)']
+                        tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
+                    elif acc0.startswith('CRH'):
+                        species = 'Chlamydomonas reinhardtii'
+                        taxid = species_to_tax_dict_2[species]
+                        tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')
                     elif '_NP_' in line.split()[0]:
                         acc = re.search(r'>.*_(NP_.*)', line.split()[0]).group(1)
                         tax_output.write('ncbi' + '\t' + acc0.strip()  + '\t' + acc.strip() + 'unknown_species' + '\t' + str(0)+ '\n')
@@ -119,7 +118,7 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         except KeyError:
                             print(line)
                     else:
-                        print('line:', line)
+                        print('line not in ref: ', line)
                     output.write('>' + acc0 + '\n')
                 else:
                     output.write(line + '\n')
