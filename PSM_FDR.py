@@ -167,6 +167,7 @@ class PSM_FDR:
         return fdr_pos, number_psms, decoys
 
     # for every spectrum (key) all by xtandem found identifications = accessions (value)
+    # needed by x_tandem_analyzer.py
     def create_spectrum_acc_dict(self, db):
         """
         :param db: db-format, 'uniprot' or 'ncbi' or 'custom'

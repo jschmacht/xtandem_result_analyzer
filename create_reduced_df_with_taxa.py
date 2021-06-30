@@ -1,10 +1,8 @@
 from pathlib import Path
 import argparse
 import pandas as pd
-from PSM_FDR import PSM_FDR
-from AccessionSearcher import AccessionSearcherNCBI
+from create_PSM_df import PSM_FDR
 from ReadAccTaxon import ReadAccTaxon
-from SearchAccessions import SearchAccessions
 from collections import defaultdict
 from handling_acc_files import HelperMethod
 
@@ -25,14 +23,45 @@ def read_crap(file):
                     crap.add(line[1:].strip())
     return crap
 
+def get_accs_from_df(x_tandem_result_tsv, db_type, decoy_tag):
+    if db_type == 'uniprot' or db_type == 'swissprot':
+        accs = set()
+        for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist():
+            try:
+                accs.add(acc.split()[0].split('|')[1])
+            # e.g. CRAP: KKA1_ECOLX
+            except IndexError:
+                accs.add(acc.split()[0])
+        # ncbi: 'generic|AC:5988671|WP_080217951.1', 'generic|AC:2500558_REVERSED|EQV03804.1 ERA83742.1 WP_021536075.1-REVERSED'
+    # problem: generic|AC:373747|pir||D85980 WP_000133047.1 AAG58304.1 -> maxsplit=2
+    # CRAP accs starts with 'sp|' or Index Error
+    elif db_type == 'ncbi':
+        accs = set()
+        for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist():
+            try:
+                # CRAP accs = sp|acc
+                if decoy_tag not in acc and not acc.startswith('sp|'):
+                    accs.add(acc.split()[0].split('|', maxsplit=2)[2])
+            except IndexError:
+                accs.add(acc.split()[0])
+    elif db_type == 'custom':
+        accs = {acc.strip() for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist()}
+    return accs
 
-def get_acc2taxon_dict(x_tandem_result_tsv, db_path, db_type):
+def get_accs_from_accs(accs, db_type):
+    if db_type == 'uniprot':
+        accs = {acc.split()[0].split('|')[1] for acc in accs}
+        return accs
+    elif db_type == 'swissprot':
+        return accs
+    else:
+        return accs
+
+def get_acc2taxon_dict(db_path, db_type, accs=None):
     acc2tax_reader=ReadAccTaxon(db_path, db_type)
     if db_type == 'custom':
         acc_2_taxon_dict = acc2tax_reader.get_acc2taxonID_dict(db_path/'acc2tax_custom')
-    elif db_type == 'uniprot':
-        # taxids_level = taxon_graph.get_all_taxids(taxonIDs, options.level)
-        accs = {acc.split()[0].split('|')[1] for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist()}
+    elif db_type == 'uniprot' or db_type == 'swissprot':
         acc_2_taxon_dict = acc2tax_reader.read_acc2tax(accs)
     return acc_2_taxon_dict
 
@@ -73,66 +102,55 @@ def remove_accs_with_unsupported_taxa(multi_acc_2_taxon_dict, taxa):
     return multi_acc_2_taxon_dict
 
 
-def get_ncbi_acc2taxon_dict(x_tandem_result_tsv, db_path, db_type, taxa, decoy_tag):
+def get_ncbi_multiacc_to_accs_dict(ncbi_accs_from_file, db_path, db_type):
+    path_to_multiaccs = '/home/jules/Documents/databases/databases_tax2proteome/multispecies_acc'
+    # key = first acc in result tsv, value: all accs
+    multacc_reader = ReadAccTaxon(db_path, db_type, path_to_multiaccs)
+    multiacc2acc_dict = multacc_reader.read_multispecies_accs(ncbi_accs_from_file)
+    return multiacc2acc_dict
+
+
+def get_taxa_from_acc2taxid_files(db_path, db_type, all_accs, taxa):
+    acc2tax_reader = ReadAccTaxon(db_path, db_type)
+    acc_2_taxon_dict = acc2tax_reader.read_acc2tax(all_accs, taxa)
+    return acc_2_taxon_dict
+
+
+def create_acc_from_file_2_taxa_set_dict(ncbi_accs_from_file, multiacc2acc_dict, acc_2_taxon_dict):
+    acc_in_tsv_2_taxa_set_dict = defaultdict(set)
+    for acc in ncbi_accs_from_file:
+        if acc in multiacc2acc_dict.keys():
+            for m_acc in multiacc2acc_dict[acc]:
+                try:
+                    acc_in_tsv_2_taxa_set_dict[acc].add(int(acc_2_taxon_dict[m_acc]))
+                    del acc_2_taxon_dict[m_acc]
+                # acc not in acc_2_taxon_dict, because taxon was not in taxa_all_level
+                except KeyError:
+                    continue
+        else:
+            acc_in_tsv_2_taxa_set_dict[acc].add(int(acc_2_taxon_dict[acc]))
+            del acc_2_taxon_dict[acc]
+    return acc_in_tsv_2_taxa_set_dict
+
+
+def get_ncbi_acc2taxon_dict(ncbi_accs_from_file, db_path, db_type, taxa):
     """
     :param x_tandem_result_tsv:
     :param db_path:
     :param db_type:
     :param taxa: list of all relevant taxa, all taxa in taxon graph below specified level
-    :return:
+    :return: acc_in_tsv_2_taxa_set_dict dict {acc string: {set of taxa(int)}
     """
-    # Protein: generic|AC:2905764_REVERSED|VVN60222.1-REVERSED, generic|AC:4682148|PMZ83684.1 PMZ91489.1 WP_054593944.1 PMZ34596.1 ALI00421.1 PMZ37242.1...
-    # generic|AC:3582431_REVERSED|WP_032249104.1 KDU12656.1 KDT75424.1-REVERSED
-    protein_accs_from_result_tsv = pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist()
-    # problem: generic|AC:373747|pir||D85980 WP_000133047.1 AAG58304.1 -> maxsplit=2
-    ncbi_accs_from_file = [acc.split('|', maxsplit=2)[2] for acc in protein_accs_from_result_tsv if decoy_tag not in acc]
     # for ncbi find all multispecies accessions with file ncbi acc
-    path_to_multiaccs = '/home/jules/Documents/databases/databases_tax2proteome/multispecies_acc'
-    multiaccs = set()
-    single_accs = set()
-    for i, acc in enumerate(ncbi_accs_from_file):
-        if len(acc.split()) > 1:
-            multiaccs.add(acc.split()[0].strip())
-        else:
-            single_accs.add(acc.strip())
-
-    # key = first acc in result tsv, value: all accs
-    multacc_reader = ReadAccTaxon(db_path, db_type, path_to_multiaccs)
-    multiacc2acc_dict = multacc_reader.read_multispecies_accs(multiaccs)
     # key = Multiacc or accs assigned to multiaccs
-    all_multiaccs = set(flatten_list(multiacc2acc_dict.values()))
-    all_accs = all_multiaccs.union(single_accs)
-    acc2tax_reader = ReadAccTaxon(db_path, db_type)
-    acc_2_taxon_dict = acc2tax_reader.read_acc2tax(all_accs, taxa)
-    print('acc_2_taxon_dict 1: ', len(acc_2_taxon_dict))
-    acc_in_tsv_2_taxa_set_dict = defaultdict(set)
-   # acc_2_taxon_dict = remove_accs_with_unsupported_taxa(acc_2_taxon_dict, taxa)
-   # print('acc_2_taxon_dict with removed unsupported taxa: ', len(acc_2_taxon_dict))
-    # taxon to set(taxon), in tsv_multi_acc_to_taxa_dict multiple taxa in set possible
-    while single_accs:
-        acc = single_accs.pop()
-        try:
-            acc_in_tsv_2_taxa_set_dict[acc].add(acc_2_taxon_dict[acc])
-        # only from CRAP: sp|K22E_HUMAN| -> acc = ''
-        except KeyError:
-            continue
-        del acc_2_taxon_dict[acc]
-    while multiaccs:
-        acc = multiaccs.pop()
-        for multiacc in multiacc2acc_dict[acc]:
-            try:
-                acc_in_tsv_2_taxa_set_dict[acc].add(acc_2_taxon_dict[multiacc])
-                del acc_2_taxon_dict[multiacc]
-            except KeyError:
-                continue
-        del multiacc2acc_dict[acc]
-  #  acc_in_tsv_2_taxon_set_dict = {acc:{taxon} for (acc,taxon) in acc_2_taxon_dict.items() if acc in single_accs}
-  #  print('acc_in_tsv_2_taxon_dict ready1', len(acc_2_taxon_dict))
-  #  tsv_multi_acc_to_taxa_dict = get_tsv_multspecies_acc_to_taxa_dict(multiacc2acc_dict, acc_2_taxon_dict)
-    # single_accs.extend(flatten_list(multiacc2acc_dict.values()))
-   # print('tsv_multi_acc_to_taxon_dict: ', len(tsv_multi_acc_to_taxa_dict))
-   # acc_in_tsv_2_taxon_set_dict.update(tsv_multi_acc_to_taxa_dict)
-    print('acc2tax_dict ready2', len(acc_in_tsv_2_taxa_set_dict))
+    multiacc2acc_dict = get_ncbi_multiacc_to_accs_dict(ncbi_accs_from_file, db_path, db_type)
+    all_accs = set(flatten_list(multiacc2acc_dict.values())).union(ncbi_accs_from_file)
+    # acc_2_taxon_dict contains 0 values for some accessions (are in prot.acc...)
+    acc_2_taxon_dict = get_taxa_from_acc2taxid_files(db_path, db_type, all_accs, taxa)
+    all_accs.clear()
+    # acc_in_tsv_2_taxa_set_dict contains in taxa_set items like '345' and '0'
+    acc_in_tsv_2_taxa_set_dict = create_acc_from_file_2_taxa_set_dict(ncbi_accs_from_file, multiacc2acc_dict, acc_2_taxon_dict)
+    multiacc2acc_dict.clear()
     return acc_in_tsv_2_taxa_set_dict
 
 
@@ -147,11 +165,15 @@ def main():
     parser.add_argument('-g', '--tax_graph', dest='tax_graph', help='Path to taxdump.tar.gz')
     parser.add_argument('-l', '--level', dest='level', choices=['subspecies', 'species', 'genus', 'family', 'order', 'superkingdom'],
                         help='Level of database')
-    parser.add_argument('-d', '--database', dest='database', choices=['ncbi', 'uniprot', 'custom'], default='uniprot',
+    parser.add_argument('-d', '--database', dest='database', choices=['ncbi', 'uniprot', 'custom', 'swissprot'], default='uniprot',
                         help='Database format.')
     parser.add_argument('-s', '--taxonset', dest='taxonset', choices=['tanca', 'kleiner'], default=None,
                         help='Taxon dataset used for analysis.')
-    parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.01, help='FDR-rate, default  = 0.01')
+    parser.add_argument('-t', '--taxon', dest='taxon', nargs='+', action='append',
+                        help='NCBI taxon ID/s for database extraction. Multiple taxonIDs seperated by space.')
+    parser.add_argument('-z', '--add_db', dest='add_db', choices=['ncbi', 'uniprot', 'custom', 'swissprot'], default=None,
+                        help='if databases are of mixed origin, e.g. custom_db + swissprot entries')
+    # parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.01, help='FDR-rate, default  = 0.01')
     parser.add_argument('-y', '--decoy', dest='decoy', default='REVERSED', help='Decoy_tag.')
     parser.add_argument('-x', '--threads', dest='threads', type=int, action="store", help='Number of threads.')
 
@@ -171,7 +193,6 @@ def main():
                       1004788, 266265, 266264, 99287, 1302247, 1149133, 3055, 93061, 1977402, 1114970, 511145,
                       536, 1407502, 1294143,
                       1619948]
-
     Tanca_taxIDs = [747, 5535, 655183, 1579, 1255, 4932, 1465, 1351, 562]
     if options.taxonset == 'kleiner':
         taxonIDs = Kleiner_taxIDs
@@ -179,28 +200,44 @@ def main():
     elif options.taxonset == 'tanca':
         taxonIDs = Tanca_taxIDs
         levels = ['species', 'genus', 'family', 'order', 'superkingdom']
+    if options.taxon:
+        taxonIDs.extend([taxID for taxonlist in options.taxon for taxID in taxonlist])
 
     db_path = Path(options.path)
     db_type = options.database
-    # for reduced_df True
-    is_decoy_column_set = True
-    x_tandem_result_tsv = options.input
+    path_to_x_tandem_result_tsv = Path(options.input)
+    path_to_crap = Path(options.crap)
     decoy_tag = options.decoy
     taxon_graph = HelperMethod.load_taxa_graph(Path(options.tax_graph))
 
     # acc_2_taxon_dict for identification file identified accs
+    if db_type == 'custom':
+        accs = None
+    else:
+        accs = get_accs_from_df(path_to_x_tandem_result_tsv, db_type, decoy_tag)
+
+
     if db_type == 'ncbi':
         all_taxa_of_level_set = set(flatten_list(taxon_graph.get_all_taxids(taxonIDs, options.level)))
-        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(x_tandem_result_tsv, db_path, db_type, all_taxa_of_level_set, decoy_tag)
+        # acc_in_tsv_2_taxa_set_dict
+        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set)
     else:
-        acc_2_taxon_dict = get_acc2taxon_dict(x_tandem_result_tsv, db_path, db_type)
+        acc_2_taxon_dict = get_acc2taxon_dict(db_path, db_type, accs)
+    accs.clear()
 
-    psm = PSM_FDR(x_tandem_result_tsv)
-    reduced_df = psm.create_PSM_dataframe(decoy_tag, db_type, options.level, taxon_graph, acc2tax_dict=acc_2_taxon_dict)
-    fdr_pos, number_psms, decoys = psm.determine_FDR_position(reduced_df, options.fdr, is_decoy_column_set)
-    print(fdr_pos, number_psms, decoys)
-    # only identifications above fdr: x_tandem_result_tsv[0:psm.fdr_pos]
-   # get_true_positive_and_true_negative(options.level, x_tandem_result_tsv[0:psm.fdr_pos])
+    if options.add_db:
+        accs = get_accs_from_df(path_to_x_tandem_result_tsv, 'custom', decoy_tag)
+        add_acc = {acc for acc in accs if acc not in acc_2_taxon_dict.keys() and not decoy_tag in acc}
+        add_acc = get_accs_from_accs(add_acc, options.add_db)
+        add_acc_2_taxon_dict = get_acc2taxon_dict(db_path, options.add_db, add_acc)
+        acc_2_taxon_dict.update(add_acc_2_taxon_dict)
+        print(add_acc)
+
+    psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
+    reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)
+    print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')}... ")
+    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')), sep='\t')
+
 
 if __name__ == '__main__':
     main()

@@ -70,6 +70,7 @@ class ReadAccTaxon:
                 fields = [item.strip() for item in line.split('\t')]
                 acc = fields[1]
                 taxon = int(fields[2])
+                # if set of allowed taxa are given
                 if taxa:
                     if acc in accs and taxon in taxa:
                         part_dict[acc] = taxon
@@ -142,7 +143,7 @@ class ReadAccTaxon:
         pool = mp.Pool(threads)
         # chunks = list of all chunks list tuples: (entry point to db, number of chars to be read)
         chunks = []
-        if self.db_type == 'uniprot':
+        if self.db_type == 'uniprot' or self.db_type == 'swissprot':
             for chunk in self.read_in_chunks(self.path_to_folder / 'acc2tax_uniprot'):
                 chunks.append(chunk)
         elif self.db_type == 'ncbi':
@@ -152,11 +153,11 @@ class ReadAccTaxon:
         # here multiprocessing starts, results saved in self.accessionIDs
         i, j = 0, 0
         ten = int(len(chunks) / 10)
-        if self.db_type == 'uniprot':
+        if self.db_type == 'uniprot' or self.db_type == 'swissprot':
             for part_dict in pool.imap(self.read_chunks_into_part_dict_uniprot, chunks):
                 if i == ten:
                     j += 1
-                    print('%d0%% readed.' % j)
+                    print('%d0%% read.' % j)
                     i = -1
                 acc_taxon_dict.update(part_dict)
                 i += 1
@@ -164,7 +165,7 @@ class ReadAccTaxon:
             for part_dict in pool.imap(self.read_chunks_into_part_dict_ncbi, chunks):
                 if i == ten:
                     j += 1
-                    print('%d0%% readed.' % j)
+                    print('%d0%% read.' % j)
                     i = -1
                 acc_taxon_dict.update(part_dict)
                 i += 1
@@ -196,7 +197,7 @@ class ReadAccTaxon:
         for part_dict in pool.imap(self.read_chunks_into_part_dict_multiaccs, chunks):
             if i == ten:
                 j += 1
-                print('%d0%% readed.' % j)
+                print('%d0%% read.' % j)
                 i = -1
             multiacc2accs_dict.update(part_dict)
             i += 1
