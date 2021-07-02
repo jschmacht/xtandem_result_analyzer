@@ -28,7 +28,10 @@ class ReadAccTaxon:
         with open(path_to_db) as acc2tax:
             for line in acc2tax:
                 fields = line.split()
-                acc_taxon_dict[fields[1]] = int(fields[-1])
+                taxon = fields[-1]
+                acc= fields[1]
+                if taxon != 'CRAP':
+                    acc_taxon_dict[acc] = int(taxon)
         return acc_taxon_dict
 
     # return generators, chunks of complete lines

@@ -125,6 +125,10 @@ class TaxonGraph():
                 if self.child_rank_dict[taxIDnew] != 'no rank':
                     last_specified_level_taxID = (self.child_rank_dict[taxIDnew], taxIDnew)
                 taxIDnew = self.child_parent_dict.get(taxIDnew)
+                if taxIDnew == 1:
+                    print("Root reached. No ancestor with level %s of taxID %d exists. TaxID %d of level %s is returned."
+                          % (level, taxID, last_specified_level_taxID[1], self.child_rank_dict[last_specified_level_taxID[1]]))
+                    return last_specified_level_taxID[1]
             if self.order[self.child_rank_dict[taxIDnew]] == self.order[level]:
                 return taxIDnew
 
@@ -149,6 +153,9 @@ class TaxonGraph():
         for taxon in taxids_of_level:
             all_taxids.append(self.find_taxIDs(taxon))
         return all_taxids
+
+    def get_scientific_name(self, taxon):
+        return self.taxon_name_dict[int(taxon)]
 
     # finds the next common ancestror of a set of taxon IDs
     def find_next_common_ancestor(self, taxonIDs):

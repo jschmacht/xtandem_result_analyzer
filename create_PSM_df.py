@@ -67,8 +67,12 @@ class PSM_FDR:
                 elif db_type == 'custom':
                     return int(acc2tax_dict[protein_acc.strip()])
             except KeyError:
-                print(protein_acc)
-                return 'DECOY/CRAP'
+                # custom acc
+                if protein_acc.startswith('CRAP'):
+                    return 'CRAP'
+                else:
+                    print(protein_acc)
+                    return 'DECOY/CRAP'
 
     def create_PSM_dataframe_for_uniprot_accs(self, acc2tax_dict, taxon_graph, level):
         self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df['Protein'].apply(lambda protein_acc: protein_acc.split()[0])
@@ -93,7 +97,7 @@ class PSM_FDR:
         for taxID in taxID_set:
             if taxID in self.decoy_list:
                 level_up_set.add(taxID)
-            elif taxID=='0' or taxID==0: # for some accs in prot2accs file
+            elif taxID == '0' or taxID == 0: # for some accs in prot2accs file
                 continue
             else:
                 level_up_set.add(taxon_graph.find_level_up(int(taxID), level))
@@ -127,7 +131,7 @@ class PSM_FDR:
 
     def create_PSM_dataframe_for_custom_accs(self, acc2tax_dict, taxon_graph, level):
         self.sorted_xtandem_df['taxID'] = self.sorted_xtandem_df['Protein'].apply(
-            lambda acc: self.get_taxid_of_prot_acc(acc, acc2tax_dict))
+            lambda acc: self.get_taxid_of_prot_acc(acc, acc2tax_dict, 'custom'))
         self.sorted_xtandem_df = self.add_level_specific_taxid_column(taxon_graph, level)
         reduced_df = self.group_df(level)
         return reduced_df
@@ -200,11 +204,17 @@ class PSM_FDR:
                 break
             if decoy / (hits + decoy) <= fdr:
                 continue
+        print(sorted_xtandem_df.columns)
+        try:
+            score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
+        except KeyError:
+            score_last_item = sorted_xtandem_df['Ref_Hyperscore'][fdr_pos]
         # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
         print('Number of PSMs: %d' % number_psms)
         print('Number of decoys: %d' % decoys)
         print(f"double identified spectra {number_multiple_identified_spectra}")
         print('Position FDR border/Number of PSMs: %d' % fdr_pos)
-        return fdr_pos, number_psms, decoys, number_multiple_identified_spectra
+        print('score last item: %d' % score_last_item)
+        return fdr_pos, number_psms, decoys, number_multiple_identified_spectra, score_last_item
 
 

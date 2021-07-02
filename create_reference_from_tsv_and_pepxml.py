@@ -79,8 +79,10 @@ class ReferenceWriter():
     def get_taxa_of_level(self, taxa_set, level):
         taxa_set_of_specified_level = set()
         for taxon in taxa_set:
-            if taxon == 0 or taxon == 'DECOY' or taxon == 'DECOY/CRAP':
-                taxa_set_of_specified_level.add(0)
+            if  taxon == 'DECOY' or taxon == 'DECOY/CRAP' or taxon == 'CRAP':
+                taxa_set_of_specified_level.add(taxon)
+            elif taxon == 0:
+                print(taxa_set)
             else:
                 taxa_set_of_specified_level.add(self.taxon_graph.find_level_up(taxon, level))
         return taxa_set_of_specified_level

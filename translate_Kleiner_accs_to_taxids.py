@@ -56,7 +56,7 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                     # CRAP
                     if line.split()[0].startswith('>CRAP'):
                         acc = line.split()[0][1:]
-                        tax_output.write('CRAP'+ '\t' + acc.strip() + '\t' + acc + '\t' + 'crap' + '\t' + '0'+ '\n')
+                        tax_output.write('CRAP'+ '\t' + acc.strip() + '\t' + acc + '\t' + 'crap' + '\t' + 'CRAP'+ '\n')
                     # metagenome
                     elif re.search(r'_peg.', line.split()[0]):
                         acc = line.split()[0][1:]
@@ -78,7 +78,7 @@ with open('/home/jules/Documents/Tax2Proteome/benchmarking/Kleiner_ref_db/Mock_C
                         species = re.search(r'OS=(.+) PE=', line).group(1)
                         acc=line.split()[1]
                         tax_output.write('uniprot'+ '\t' + acc0.strip()  + '\t' + acc.strip()  + '\t' + species + '\t' + str(species_to_tax_dict[species])+ '\n')
-                    elif acc0.startswith('SMS'):
+                    elif acc0.startswith('SMS'): # Stenotrophomonas indicatrix, Stenotrophomonas ...
                         species = 'Stenotrophomonas maltophilia'
                         taxid = species_to_tax_dict_2[species]
                         tax_output.write('ncbi_multispecies' + '\t' + acc0.strip()  + '\t' + acc0.strip()  + '\t' + species + '\t' + str(taxid)+ '\n')

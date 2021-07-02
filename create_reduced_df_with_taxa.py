@@ -24,38 +24,35 @@ def read_crap(file):
     return crap
 
 def get_accs_from_df(x_tandem_result_tsv, db_type, decoy_tag):
-    if db_type == 'uniprot' or db_type == 'swissprot':
-        accs = set()
-        for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist():
+    acc_from_tsv = pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist()
+    accs = get_accs_from_accs(acc_from_tsv, db_type, decoy_tag)
+    return accs
+
+def get_accs_from_accs(accs, db_type, decoy_tag):
+    processed_accs = set()
+    for acc in accs:
+        if db_type == 'uniprot' or db_type == 'swissprot':
             try:
-                accs.add(acc.split()[0].split('|')[1])
+                if decoy_tag not in acc:
+                    processed_accs.add(acc.split()[0].split('|')[1])
             # e.g. CRAP: KKA1_ECOLX
             except IndexError:
-                accs.add(acc.split()[0])
-        # ncbi: 'generic|AC:5988671|WP_080217951.1', 'generic|AC:2500558_REVERSED|EQV03804.1 ERA83742.1 WP_021536075.1-REVERSED'
-    # problem: generic|AC:373747|pir||D85980 WP_000133047.1 AAG58304.1 -> maxsplit=2
-    # CRAP accs starts with 'sp|' or Index Error
-    elif db_type == 'ncbi':
-        accs = set()
-        for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist():
+                processed_accs.add(acc.split()[0])
+        elif db_type == 'ncbi':
+            # ncbi: 'generic|AC:5988671|WP_080217951.1', 'generic|AC:2500558_REVERSED|EQV03804.1 ERA83742.1 WP_021536075.1-REVERSED'
+            # problem: generic|AC:373747|pir||D85980 WP_000133047.1 AAG58304.1 -> maxsplit=2
+            # CRAP accs starts with 'sp|' or Index Error
             try:
                 # CRAP accs = sp|acc
                 if decoy_tag not in acc and not acc.startswith('sp|'):
-                    accs.add(acc.split()[0].split('|', maxsplit=2)[2])
+                    processed_accs.add(acc.split()[0].split('|', maxsplit=2)[2])
             except IndexError:
                 accs.add(acc.split()[0])
-    elif db_type == 'custom':
-        accs = {acc.strip() for acc in pd.read_csv(str(x_tandem_result_tsv), delimiter='\t')['Protein'].tolist()}
-    return accs
+        elif db_type == 'custom':
+            if decoy_tag not in acc:
+                processed_accs.add(acc.strip())
+    return processed_accs
 
-def get_accs_from_accs(accs, db_type):
-    if db_type == 'uniprot':
-        accs = {acc.split()[0].split('|')[1] for acc in accs}
-        return accs
-    elif db_type == 'swissprot':
-        return accs
-    else:
-        return accs
 
 def get_acc2taxon_dict(db_path, db_type, accs=None):
     acc2tax_reader=ReadAccTaxon(db_path, db_type)
@@ -172,7 +169,7 @@ def main():
     parser.add_argument('-t', '--taxon', dest='taxon', nargs='+', action='append',
                         help='NCBI taxon ID/s for database extraction. Multiple taxonIDs seperated by space.')
     parser.add_argument('-z', '--add_db', dest='add_db', choices=['ncbi', 'uniprot', 'custom', 'swissprot'], default=None,
-                        help='if databases are of mixed origin, e.g. custom_db + swissprot entries')
+                        help='if databases are of mixed origin, only working for custom_db + swissprot/uniprot or ncbi entries')
     # parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.01, help='FDR-rate, default  = 0.01')
     parser.add_argument('-y', '--decoy', dest='decoy', default='REVERSED', help='Decoy_tag.')
     parser.add_argument('-x', '--threads', dest='threads', type=int, action="store", help='Number of threads.')
@@ -212,7 +209,7 @@ def main():
 
     # acc_2_taxon_dict for identification file identified accs
     if db_type == 'custom':
-        accs = None
+        accs = set()
     else:
         accs = get_accs_from_df(path_to_x_tandem_result_tsv, db_type, decoy_tag)
 
@@ -226,12 +223,20 @@ def main():
     accs.clear()
 
     if options.add_db:
+        # accs= full accs without split, if custom: get dict of all accs in db
         accs = get_accs_from_df(path_to_x_tandem_result_tsv, 'custom', decoy_tag)
-        add_acc = {acc for acc in accs if acc not in acc_2_taxon_dict.keys() and not decoy_tag in acc}
-        add_acc = get_accs_from_accs(add_acc, options.add_db)
-        add_acc_2_taxon_dict = get_acc2taxon_dict(db_path, options.add_db, add_acc)
+        add_accs = {acc for acc in accs if acc not in acc_2_taxon_dict.keys()}
+        processed_add_acc = get_accs_from_accs(add_accs, options.add_db, decoy_tag)
+        processed_add_acc_2_taxon_dict = get_acc2taxon_dict(db_path, options.add_db, processed_add_acc)
+        add_acc_2_taxon_dict = {}
+        for processed_acc, taxon in processed_add_acc_2_taxon_dict.items():
+            for acc in add_accs:
+                if processed_acc in acc:
+                    add_acc_2_taxon_dict[acc] = taxon
         acc_2_taxon_dict.update(add_acc_2_taxon_dict)
-        print(add_acc)
+    for k, v in acc_2_taxon_dict.items():
+        if v == 0 or v=='0':
+            print(k,v)
 
     psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
     reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)

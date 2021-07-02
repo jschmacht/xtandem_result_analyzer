@@ -13,12 +13,12 @@ def flatten_set(l):
 
 
 def write_results(result_dict, number_all_identified_taxa, taxonIDs, taxids_of_level, result_output):
-    with open(result_output, 'w'):
-        result_output.write(f"tax/taxa_level/number_of_spectra/% of all identified spectra")
+    with open(str(result_output), 'w') as output:
+        output.write(f"tax \t taxa_level \t number_of_spectra \t % of all identified spectra\n")
         for taxon, taxon_level in zip(taxonIDs, taxids_of_level):
-            result_output.write(f"{taxon}\t{taxon_level}\t{len(result_dict[taxon])}\t{len(result_dict[taxon])/number_all_identified_taxa*100}")
-        result_output.write(f"{'CRAP'}\t{'CRAP'}\t{len(result_dict['CRAP'])}\t{len(result_dict['CRAP'])/number_all_identified_taxa*100}")
-        result_output.write(f"{'DECOY'}\t{'DECOY'}\t{len(result_dict['DECOY'])}\t{len(result_dict['DECOY'])/number_all_identified_taxa*100}")
+            output.write(f"{taxon}\t{taxon_level}\t{len(result_dict[taxon_level])}\t{len(result_dict[taxon_level])/number_all_identified_taxa*100}\n")
+        output.write(f"{'CRAP'}\t{'CRAP'}\t{len(result_dict['CRAP'])}\t{len(result_dict['CRAP'])/number_all_identified_taxa*100}\n")
+        output.write(f"{'DECOY'}\t{'DECOY'}\t{len(result_dict['DECOY'])}\t{len(result_dict['DECOY'])/number_all_identified_taxa*100}\n")
 
 
 def main():
@@ -30,6 +30,8 @@ def main():
     parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.05, help='FDR-rate, default  = 0.05')
     parser.add_argument('-s', '--taxonset', dest='taxonset', choices=['tanca', 'kleiner'], default=None,
                         help='Taxon dataset used for analysis.')
+    parser.add_argument('-t', '--taxon', dest='taxon', type=int, nargs='+', action='append',
+                        help='NCBI taxon ID/s for database extraction. Multiple taxonIDs seperated by space.')
     parser.add_argument('-o', '--output', dest='output', default=None, help='Path to result output')
     options = parser.parse_args()
     # not in Kleiner DB: 536: Chromobacterium violaceum, 1407502: Stenotrophomonas maltophilia SeITE02
@@ -72,11 +74,8 @@ def main():
     for spectra, taxid_set in zip(fdr_applied_result_df['Title'].tolist(), fdr_applied_result_df[f'taxID_{options.level}'].tolist()):
         for taxid in taxid_set:
             result_dict[taxid].add(spectra)
-    for taxid in taxids_of_level:
-        print(result_dict[taxid])
-    print(result_dict.keys())
-    number_all_identified_taxa = len(flatten_set(list(result_dict.values())))
-    write_results(result_dict, number_all_identified_taxa, taxonIDs, taxids_of_level, path_to_output)
+    number_all_identified_spectra = len(flatten_set(list(result_dict.values())))
+    write_results(result_dict, number_all_identified_spectra, taxonIDs, taxids_of_level, path_to_output)
 
 
 if __name__ == '__main__':

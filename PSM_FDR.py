@@ -159,11 +159,13 @@ class PSM_FDR:
                 break
             if decoy / (hits + decoy) <= fdr:
                 continue
+        score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
         # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
         print('Number of PSMs: %d' % number_psms)
         print('Number of decoys: %d' % decoys)
         print(f"double identified spectra {number_multiple_identified_spectra}")
         print('Position FDR border/Number of PSMs: %d' % fdr_pos)
+        print('score last item: %d' % score_last_item)
         return fdr_pos, number_psms, decoys
 
     # for every spectrum (key) all by xtandem found identifications = accessions (value)
