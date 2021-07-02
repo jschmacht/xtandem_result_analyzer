@@ -136,8 +136,6 @@ class SensitivityAndSpecificity():
         return df_all
 
     def get_true_positive_and_true_negative(self, df_with_all_unidentified_spectra, df_with_all_reference_spectra_and_merged_results):
-        df_with_all_reference_spectra_and_merged_results.to_csv('/home/jules/Documents/Tax2Proteome/benchmarking/all_df.tsv', sep='\t')
-
         df_with_all_reference_spectra_and_merged_results = self.replace_nan_by_empty_set(df_with_all_reference_spectra_and_merged_results)
 
         df_taxid = df_with_all_reference_spectra_and_merged_results[['Title','taxID','Ref_taxID_DB']]
@@ -149,24 +147,19 @@ class SensitivityAndSpecificity():
             f'taxID_{self.level}': lambda x: self.flatten_set(x), f'Ref_taxID_{self.level}': lambda x: self.flatten_set(x)})
         # both nan or one nan one DECOY
         df_TN = df_with_all_unidentified_spectra
-        df_TN.to_csv('/home/jules/Documents/Tax2Proteome/benchmarking/TN.tsv', sep='\t')
-        # print(df_TN.head())
         TN=len(set(df_TN.SpectraID.tolist()))
 
         df_TP = df_taxid_level[self.check_for_TP(df_taxid_level[f'taxID_{self.level}'].tolist(),
                                                              df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
-        df_TP.to_csv('/home/jules/Documents/Tax2Proteome/benchmarking/TP.tsv', sep='\t')
         TP = len(set(df_TP.Title.tolist()))
         # FN: not identified in result, but identified in referernce
         df_FN = df_taxid[self.check_for_FN(df_taxid.taxID, df_taxid.Ref_taxID_DB)]
-        df_FN.to_csv('/home/jules/Documents/Tax2Proteome/benchmarking/FN.tsv', sep='\t')
         FN=len(set(df_FN.Title.tolist()))
-
 
         df_FP = df_taxid_level[self.check_for_FP(df_taxid_level[f'taxID_{self.level}'].tolist(),
                                                               df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
-        df_FP.to_csv('/home/jules/Documents/Tax2Proteome/benchmarking/FP.tsv', sep='\t')
         FP = len(set(df_FP.Title.tolist()))
+
         df_s = df_with_all_reference_spectra_and_merged_results[df_with_all_reference_spectra_and_merged_results.taxID != {'DECOY'}]
         print(f"TP: {TP}, FP: {FP}, TN: {TN}, FN: {FN}, number of all spectra without decoy/crap spectra: "
               f"{len(set(df_s.Title))}, number of TP+TN+FP+FN: {TP+FN+FP+TN}")

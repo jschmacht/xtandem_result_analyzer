@@ -5,7 +5,7 @@ from create_reference_from_tsv_and_pepxml import ReferenceWriter
 from sensitivity_calculator import SensitivityAndSpecificity
 
 def write_output(path_to_result_file, fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra):
-    with open(str(path_to_result_file)+ '_fdr_' + '_sensitivity', 'w') as output:
+    with open(f"{str(path_to_result_file)}_{fdr}_sensitivity", 'w') as output:
         output.write('FDR:' + '\t' + str(fdr) + '\n')
         output.write('specificity:'+ '\t'  + str(specificity) + '\n')
         output.write('sensitivity:'+ '\t'  + str(sensitivity) + '\n')

@@ -74,12 +74,10 @@ class PSM_FDR:
                                                                                              and int(taxID) != 0
                                                                                           else 'DECOY/CRAP'
                                                                                           for taxID in taxID_set})
-        print('sorted_xtandem_df head: ', self.sorted_xtandem_df.head())
         reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
             {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda decoy: set(decoy),
              'taxID': lambda taxid_sets: self.flatten_set(taxid_sets),
              f'taxID_{level}': lambda taxid_sets: self.flatten_set(taxid_sets)})
-        print('reduced_df head: ', reduced_df.head())
         return reduced_df
 
     def create_PSM_dataframe_for_custom_accs(self, acc2tax_dict, decoy_tag, taxon_graph, level):
@@ -113,13 +111,13 @@ class PSM_FDR:
         reduced_df = reduced_df.sort_values(by=['Hyperscore', 'Title'], ascending=False).reset_index(drop=True)
         print(f"writing data frame to {self.path_to_file.parent.joinpath(self.path_to_file.stem + '_reduced.tsv')}... ")
         reduced_df.to_csv(str(self.path_to_file.parent.joinpath(self.path_to_file.stem + '_reduced.tsv')), sep='\t')
-        print(f'entries in sorted df: {len(self.sorted_xtandem_df)} '
-              f'decoys in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==True])} '
-              f'hits in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==False])}')
-        print(f'entries in reduced_df: {len(reduced_df)} '
-              f'decoys in reduced_df: {len(reduced_df[reduced_df.decoy=={True}])} '
-              f'hits in reduced_df: {len(reduced_df[reduced_df.decoy=={False}])} '
-              f'mixed in reduced_df: {len(reduced_df[reduced_df.decoy=={False, True}])}')
+        # print(f'entries in sorted df: {len(self.sorted_xtandem_df)} '
+        #       f'decoys in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==True])} '
+        #       f'hits in sorted df: {len(self.sorted_xtandem_df[self.sorted_xtandem_df.decoy==False])}')
+        # print(f'entries in reduced_df: {len(reduced_df)} '
+        #       f'decoys in reduced_df: {len(reduced_df[reduced_df.decoy=={True}])} '
+        #       f'hits in reduced_df: {len(reduced_df[reduced_df.decoy=={False}])} '
+        #       f'mixed in reduced_df: {len(reduced_df[reduced_df.decoy=={False, True}])}')
         return reduced_df
 
     @staticmethod
@@ -161,11 +159,11 @@ class PSM_FDR:
                 continue
         score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
         # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
-        print('Number of PSMs: %d' % number_psms)
-        print('Number of decoys: %d' % decoys)
-        print(f"double identified spectra {number_multiple_identified_spectra}")
-        print('Position FDR border/Number of PSMs: %d' % fdr_pos)
-        print('score last item: %d' % score_last_item)
+        # print('Number of PSMs: %d' % number_psms)
+        # print('Number of decoys: %d' % decoys)
+        # print(f"double identified spectra {number_multiple_identified_spectra}")
+        # print('Position FDR border/Number of PSMs: %d' % fdr_pos)
+        # print('score last item: %d' % score_last_item)
         return fdr_pos, number_psms, decoys
 
     # for every spectrum (key) all by xtandem found identifications = accessions (value)
