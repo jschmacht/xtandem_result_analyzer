@@ -31,7 +31,8 @@ dbs = ['reference',"reference_Arabidopsis_thaliana", 'ncbi_species', "ncbi_genus
       "swissprot_genus", "swissprot_family", "swissprot_order"]
 dict_databases_to_size_and_result_file={'reference': (123088, f"{species_reduced_df[7]}_{fdr}_sensitivity"),
                                         "reference_Arabidopsis_thaliana": (138980, f"{species_reduced_df[6]}_{fdr}_sensitivity"),
-                                        'ncbi_species': (293197, f"{species_reduced_df[5]}_{fdr}_sensitivity"),
+
+                                        'ncbi_species': (8702135, f"{species_reduced_df[5]}_{fdr}_sensitivity"),
                                         "ncbi_genus":(27804893, f"{genus_reduced_df[4]}_{fdr}_sensitivity"),
 
                                         "uniprot_species": (4683371, f"{species_reduced_df[0]}_{fdr}_sensitivity"),
@@ -40,8 +41,8 @@ dict_databases_to_size_and_result_file={'reference': (123088, f"{species_reduced
                                         "uniprot_genus": (18352148,  f"{genus_reduced_df[0]}_{fdr}_sensitivity"),
                                         "uniprot_genus_species": (13068285,  f"{genus_reduced_df[1]}_{fdr}_sensitivity"),
                                         "uniprot_genus_nr": (13210287,  f"{genus_reduced_df[2]}_{fdr}_sensitivity"),
-
                                         "uniprot_family_nr": (22509624, f"{family_reduced_df[0]}_{fdr}_sensitivity"),
+
                                         "swissprot_species": (58505, f"{species_reduced_df[3]}_{fdr}_sensitivity"),
                                         "swissprot_genus": (88164, f"{genus_reduced_df[3]}_{fdr}_sensitivity" ),
                                         "swissprot_family": (124044, f"{family_reduced_df[1]}_{fdr}_sensitivity"),
