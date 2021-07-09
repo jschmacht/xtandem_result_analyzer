@@ -1,11 +1,7 @@
-import numpy as np
 import pandas as pd
-from pathlib import Path
-import argparse
 from handling_acc_files import HelperMethod
-from create_reference_from_tsv_and_pepxml import ReferenceWriter
-from collections import defaultdict
 from create_PSM_df import PSM_FDR
+
 
 class SensitivityAndSpecificity():
 
@@ -21,7 +17,7 @@ class SensitivityAndSpecificity():
         self.reference_df = self.rename_reference_df_columns(df_reference)
         self.all_spectra_set = self.get_all_spectra_IDs(spectra_file)
         self.fdr_pos_result, self.number_psm_result, self.number_decoy_result, self.double_spectra_result,\
-        self.score_last_item_result  = PSM_FDR.determine_FDR_position(self.result_df, fdr, True)
+        self.score_last_item_result = PSM_FDR.determine_FDR_position(self.result_df, fdr, True)
         self.fdr_pos_reference, self.number_psm_reference, self.number_decoy_reference, self.double_spectra_reference, \
         self.score_last_item_reference = PSM_FDR.determine_FDR_position(self.reference_df, fdr, True, 'Ref_decoy')
         self.decoy_list = [{'DECOY'}, {0}]
@@ -74,6 +70,10 @@ class SensitivityAndSpecificity():
                 true_false_list.append(False)
         return true_false_list
 
+    def get_all_identified_result_spectra(self, df_with_all_reference_spectra_and_merged_results):
+        df_s = df_with_all_reference_spectra_and_merged_results[df_with_all_reference_spectra_and_merged_results.taxID != {'DECOY'}]
+        df_s = df_s[df_s.taxID != {}]
+        return len(set(df_s.Title))
 
     def check_for_TP(self, taxid_level_column, taxid_level_ref_column):
         decoy_set = {'DECOY', 0}
@@ -106,13 +106,12 @@ class SensitivityAndSpecificity():
 
     def check_for_FN(self, taxID_column, Ref_taxID_DB_column):
         decoy_set = {'DECOY', 0}
-        true_false_list = []
-        for taxid_set, taxid_ref_set in zip(taxID_column, Ref_taxID_DB_column):
-            if len(taxid_set.difference(decoy_set)) == 0 and len(taxid_ref_set.difference(decoy_set)) > 0 :
-                 true_false_list.append(True)
-            else:
-                true_false_list.append(False)
-        return true_false_list
+        return [True if len(taxid_set.difference(decoy_set)) == 0 and len(taxid_ref_set.difference(decoy_set)) > 0
+                           else False for taxid_set, taxid_ref_set in zip(taxID_column, Ref_taxID_DB_column)]
+
+    def get_both_decoy_or_one_unidentifed_as_TN(self, decoy_column, ref_decoy_column):
+        return [True if decoy_set in [{True}, {}] and ref_decoy_set in [{True}, {}] else False
+                for decoy_set, ref_decoy_set in zip(decoy_column, ref_decoy_column)]
 
     def remove_all_decoy_and_nan_rows(self, df_with_all_reference_spectra_and_merged_results_in_fdr):
         return df_with_all_reference_spectra_and_merged_results_in_fdr[
@@ -129,13 +128,15 @@ class SensitivityAndSpecificity():
         return df_with_all_unidentified_spectra
 
     def replace_nan_by_empty_set(self, df_all):
-        df_all.loc[df_all['taxID'].isnull(),['taxID']] = df_all.loc[df_all['taxID'].isnull(), 'taxID'].apply(lambda x: [])
-        df_all.loc[df_all['Ref_taxID_DB'].isnull(),['Ref_taxID_DB']] = df_all.loc[df_all['Ref_taxID_DB'].isnull(), 'Ref_taxID_DB'].apply(lambda x: [])
-        df_all.loc[df_all[f'taxID_{self.level}'].isnull(),[f'taxID_{self.level}']] = df_all.loc[df_all[f'taxID_{self.level}'].isnull(), f'taxID_{self.level}'].apply(lambda x: [])
-        df_all.loc[df_all[f'Ref_taxID_{self.level}'].isnull(),[f'Ref_taxID_{self.level}']] = df_all.loc[df_all[f'Ref_taxID_{self.level}'].isnull(), f'Ref_taxID_{self.level}'].apply(lambda x: [])
+        df_all.loc[df_all['taxID'].isnull(),['taxID']] = df_all.loc[df_all['taxID'].isnull(), 'taxID'].apply(lambda x: set())
+        df_all.loc[df_all['Ref_taxID_DB'].isnull(),['Ref_taxID_DB']] = df_all.loc[df_all['Ref_taxID_DB'].isnull(), 'Ref_taxID_DB'].apply(lambda x: set())
+        df_all.loc[df_all[f'taxID_{self.level}'].isnull(),[f'taxID_{self.level}']] = df_all.loc[df_all[f'taxID_{self.level}'].isnull(), f'taxID_{self.level}'].apply(lambda x: set())
+        df_all.loc[df_all[f'Ref_taxID_{self.level}'].isnull(),[f'Ref_taxID_{self.level}']] = df_all.loc[df_all[f'Ref_taxID_{self.level}'].isnull(), f'Ref_taxID_{self.level}'].apply(lambda x: set())
+        df_all.loc[df_all['decoy'].isnull(),['decoy']] = df_all.loc[df_all['decoy'].isnull(), 'decoy'].apply(lambda x: set())
+        df_all.loc[df_all['Ref_decoy'].isnull(),['Ref_decoy']] = df_all.loc[df_all['Ref_decoy'].isnull(), 'Ref_decoy'].apply(lambda x: set())
         return df_all
 
-    def get_true_positive_and_true_negative(self, df_with_all_unidentified_spectra, df_with_all_reference_spectra_and_merged_results):
+    def get_true_positive_and_true_negative(self, df_with_all_reference_spectra_and_merged_results, df_with_all_unidentified_spectra=None):
         df_with_all_reference_spectra_and_merged_results = self.replace_nan_by_empty_set(df_with_all_reference_spectra_and_merged_results)
 
         df_taxid = df_with_all_reference_spectra_and_merged_results[['Title','taxID','Ref_taxID_DB']]
@@ -145,24 +146,30 @@ class SensitivityAndSpecificity():
         df_taxid_level = df_with_all_reference_spectra_and_merged_results[['Title', f'taxID_{self.level}',f'Ref_taxID_{self.level}']]
         df_taxid_level = df_taxid_level.groupby(['Title'], as_index=False).agg({
             f'taxID_{self.level}': lambda x: self.flatten_set(x), f'Ref_taxID_{self.level}': lambda x: self.flatten_set(x)})
+        df_decoy = df_with_all_reference_spectra_and_merged_results[['Title', 'decoy', 'Ref_decoy']]
         # both nan or one nan one DECOY
-        df_TN = df_with_all_unidentified_spectra
-        TN=len(set(df_TN.SpectraID.tolist()))
+        if df_with_all_unidentified_spectra is not None:
+            df_TN = df_with_all_unidentified_spectra
+            TN=len(set(df_TN.SpectraID.tolist()))
+        else:
+            df_TN = df_decoy[self.get_both_decoy_or_one_unidentifed_as_TN(df_decoy.decoy, df_decoy.Ref_decoy)]
+            TN=len(set(df_TN.Title.tolist()))
 
         df_TP = df_taxid_level[self.check_for_TP(df_taxid_level[f'taxID_{self.level}'].tolist(),
-                                                             df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
+                                                 df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
         TP = len(set(df_TP.Title.tolist()))
         # FN: not identified in result, but identified in referernce
         df_FN = df_taxid[self.check_for_FN(df_taxid.taxID, df_taxid.Ref_taxID_DB)]
         FN=len(set(df_FN.Title.tolist()))
 
         df_FP = df_taxid_level[self.check_for_FP(df_taxid_level[f'taxID_{self.level}'].tolist(),
-                                                              df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
+                                                 df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
         FP = len(set(df_FP.Title.tolist()))
 
-        df_s = df_with_all_reference_spectra_and_merged_results[df_with_all_reference_spectra_and_merged_results.taxID != {'DECOY'}]
-        print(f"TP: {TP}, FP: {FP}, TN: {TN}, FN: {FN}, number of all spectra without decoy/crap spectra: "
-              f"{len(set(df_s.Title))}, number of TP+TN+FP+FN: {TP+FN+FP+TN}")
+        all_identified_result_spectra = self.get_all_identified_result_spectra(df_with_all_reference_spectra_and_merged_results)
+        print(f"TP: {TP}, FP: {FP}, TN: {TN}, FN: {FN}, number of all identifed spectra in result: "
+              f"{all_identified_result_spectra}, number of TP+TN+FP+FN: {TP+FN+FP+TN}, number of entries in merged df: "
+              f"{len(df_with_all_reference_spectra_and_merged_results)}")
         return TP, FP, TN, FN
 
     @staticmethod

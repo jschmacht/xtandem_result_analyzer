@@ -4,8 +4,12 @@ import argparse
 from create_reference_from_tsv_and_pepxml import ReferenceWriter
 from sensitivity_calculator import SensitivityAndSpecificity
 
-def write_output(path_to_result_file, fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra):
-    with open(f"{str(path_to_result_file)}_{fdr}_sensitivity", 'w') as output:
+def write_output(path_to_result_file, fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra, ignore_unidentified=False):
+    if not ignore_unidentified:
+        output_file=f"{str(path_to_result_file)}_{fdr}_sensitivity"
+    else:
+        output_file=f"{str(path_to_result_file)}_ignore_unclassified_{fdr}_sensitivity"
+    with open(output_file, 'w') as output:
         output.write('FDR:' + '\t' + str(fdr) + '\n')
         output.write('specificity:'+ '\t'  + str(specificity) + '\n')
         output.write('sensitivity:'+ '\t'  + str(sensitivity) + '\n')
@@ -27,7 +31,11 @@ def main():
     parser.add_argument('-r', '--result', dest='result', default=None, help='Path to reduced result tsv, Tax2Proteome X-Tandem results')
     parser.add_argument('-l', '--level', dest='level', choices=['species', 'genus', 'family', 'order'],
                         help='Level of database')
-    parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.05, help='FDR-rate, default  = 0.05')
+    parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.05, help='FDR-rate, default = 0.05')
+    parser.add_argument('-i', '--ignore_unidentified_spectra', action='store_true', default=False,
+                        help='all spectra unidentified in reference and result file are ignored for '
+                                            'specificity and sensitivity analysis, default = False')
+
     options = parser.parse_args()
 
     path_to_result_file = Path(options.result)
@@ -45,14 +53,17 @@ def main():
                                                                 s_u_s.result_df[0:s_u_s.fdr_pos_result], how="left",
                                                                 left_on='Title', right_on='Title')
     print('Merged dataframe')
-    df_with_all_unidentified_spectra =  s_u_s.get_df_with_all_unidentified_spectra_in_reference_and_result()
-    TP, FP, TN, FN = s_u_s.get_true_positive_and_true_negative(df_with_all_unidentified_spectra,
-                                                               df_with_all_reference_spectra_and_merged_results_in_fdr)
+    if not options.ignore_unidentified_spectra:
+        df_with_all_unidentified_spectra =  s_u_s.get_df_with_all_unidentified_spectra_in_reference_and_result()
+        TP, FP, TN, FN = s_u_s.get_true_positive_and_true_negative(df_with_all_reference_spectra_and_merged_results_in_fdr,
+                                                                   df_with_all_unidentified_spectra)
+    else:
+        TP, FP, TN, FN = s_u_s.get_true_positive_and_true_negative(df_with_all_reference_spectra_and_merged_results_in_fdr)
     sensitivity = SensitivityAndSpecificity.calculate_sensitivity(TP, FN)
     specificity = SensitivityAndSpecificity.calculate_specificity(FP, TN)
     df_only_in_result_identified_spectra = s_u_s.get_df_with_identified_spectra_in_result_df_but_not_in_reference_df()
 
-    write_output(path_to_result_file, options.fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra)
+    write_output(path_to_result_file, options.fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra, options.ignore_unidentified_spectra)
 
 
 

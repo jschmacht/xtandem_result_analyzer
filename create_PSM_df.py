@@ -169,6 +169,14 @@ class PSM_FDR:
         return reduced_df
 
     @staticmethod
+    def get_all_PSMs(decoy_column):
+        return [True if False in decoy_set else False for decoy_set in decoy_column]
+
+    @staticmethod
+    def get_all_decoys(decoy_column):
+        return [True if True in decoy_set else False for decoy_set in decoy_column]
+
+    @staticmethod
     def determine_FDR_position(sorted_xtandem_df, fdr, is_decoy_column_set, decoy_column_name='decoy'):
         """
         :param fdr: false discovery rate, for example 0.01
@@ -179,6 +187,15 @@ class PSM_FDR:
         FDR_position_not_set = True
         title_set = set()
         spectra_header = [(x, y) for x, y in zip(sorted_xtandem_df['Title'], sorted_xtandem_df[decoy_column_name])]
+        fdr_pos = len(sorted_xtandem_df)-1
+        is_ref_file = True if 'Ref_decoy' in sorted_xtandem_df.columns else False
+        if is_ref_file:
+            number_psms = len(set(sorted_xtandem_df[PSM_FDR.get_all_PSMs(sorted_xtandem_df.Ref_decoy)].Title))
+            decoys = len(set(sorted_xtandem_df[PSM_FDR.get_all_decoys(sorted_xtandem_df.Ref_decoy)].Title))
+        else:
+            number_psms = len(set(sorted_xtandem_df[PSM_FDR.get_all_PSMs(sorted_xtandem_df.decoy)].Title))
+            decoys = len(set(sorted_xtandem_df[PSM_FDR.get_all_decoys(sorted_xtandem_df.decoy)].Title))
+
         for elem in spectra_header:
             if elem[0] in title_set:
                 repeatedly_identified_spectra.add(elem[0])
@@ -204,11 +221,11 @@ class PSM_FDR:
                 break
             if decoy / (hits + decoy) <= fdr:
                 continue
-        print(sorted_xtandem_df.columns)
-        try:
-            score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
-        except KeyError:
+        if is_ref_file:
             score_last_item = sorted_xtandem_df['Ref_Hyperscore'][fdr_pos]
+        else:
+            score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
+
         # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
         print('Number of PSMs: %d' % number_psms)
         print('Number of decoys: %d' % decoys)
