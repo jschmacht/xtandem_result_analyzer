@@ -54,7 +54,7 @@ class PSM_FDR:
                 # get taxa set
                 return acc2tax_dict[protein_acc]
             except KeyError:
-                print(protein_acc)
+                print('DECOY/CRAP- protein accs: ', protein_acc)
                 return {'DECOY/CRAP'}
         else:
             if protein_acc in self.crap_acc_set:
@@ -71,7 +71,7 @@ class PSM_FDR:
                 if protein_acc.startswith('CRAP'):
                     return 'CRAP'
                 else:
-                    print(protein_acc)
+                    print('DECOY/CRAP- protein accs: ', protein_acc)
                     return 'DECOY/CRAP'
 
     def create_PSM_dataframe_for_uniprot_accs(self, acc2tax_dict, taxon_graph, level):
@@ -227,11 +227,11 @@ class PSM_FDR:
             score_last_item = sorted_xtandem_df['Hyperscore'][fdr_pos]
 
         # repeatedly_identified_spectra of reduced_df: different Proteins, same spectra,
-        print('Number of PSMs: %d' % number_psms)
-        print('Number of decoys: %d' % decoys)
-        print(f"double identified spectra {number_multiple_identified_spectra}")
-        print('Position FDR border/Number of PSMs: %d' % fdr_pos)
-        print('score last item: %d' % score_last_item)
+        # print('Number of PSMs: %d' % number_psms)
+        # print('Number of decoys: %d' % decoys)
+        # print(f"double identified spectra {number_multiple_identified_spectra}")
+        # print('Position FDR border/Number of PSMs: %d' % fdr_pos)
+        # print('score last item: %d' % score_last_item)
         return fdr_pos, number_psms, decoys, number_multiple_identified_spectra, score_last_item
 
 

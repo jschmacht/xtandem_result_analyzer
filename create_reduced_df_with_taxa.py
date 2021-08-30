@@ -107,7 +107,7 @@ def get_ncbi_multiacc_to_accs_dict(ncbi_accs_from_file, db_path, db_type):
     return multiacc2acc_dict
 
 
-def get_taxa_from_acc2taxid_files(db_path, db_type, all_accs, taxa):
+def get_taxa_from_acc2taxid_files(db_path, db_type, all_accs, taxa=None):
     acc2tax_reader = ReadAccTaxon(db_path, db_type)
     acc_2_taxon_dict = acc2tax_reader.read_acc2tax(all_accs, taxa)
     return acc_2_taxon_dict
@@ -130,7 +130,7 @@ def create_acc_from_file_2_taxa_set_dict(ncbi_accs_from_file, multiacc2acc_dict,
     return acc_in_tsv_2_taxa_set_dict
 
 
-def get_ncbi_acc2taxon_dict(ncbi_accs_from_file, db_path, db_type, taxa):
+def get_ncbi_acc2taxon_dict(ncbi_accs_from_file, db_path, db_type, taxa=None):
     """
     :param x_tandem_result_tsv:
     :param db_path:
@@ -152,6 +152,15 @@ def get_ncbi_acc2taxon_dict(ncbi_accs_from_file, db_path, db_type, taxa):
 
 
 def main():
+    """
+    1. based on db_type: get accs from tsv (split acc string)
+    2. get acc_2_taxon_dict, NCBI only if taxon of acc2taxon in taxa, added to dict -> change
+    acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set): removed all_taxa_of_level_set
+    3. create_PSM_dataframe: sorting by Hyperscore, all matches to one spectrum with same score in same row, determine decoy hits
+         add taxID column based on acc2tax dict, taxa_level column based on taxID column
+    so given taxIDs are never used (except for NCBI, but I removed this
+    :return: write reduced_tsv with all sorted and relevant information
+    """
     parser = argparse.ArgumentParser(description='Read xtandem output .tsv')
     parser.add_argument('-i', '--input', dest='input', default=None, help='xtandem tsv with columns:'
                                                                           '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore, Evalue')
@@ -179,17 +188,25 @@ def main():
     # in brackets: taxon ID used in bachelor thesis:
     # 83333 Escherichia coli K-12 (511145, Escherichia coli str. K-12 substr. MG1655), 1294143 : Paracoccus denitrificans (1302247)
     # 294 Pseudomonas fluorescens (1114970: Pseudomonas fluorescens F113), 216596 (1041145: Rhizobium leguminosarum bv. viciae VF39)
-    # 1280 (93061: Staphylococcus aureus subsp. aureus NCTC 8325),
+    # 1280 (93061: Staphylococcus aureus subsp. aureus NCTC 8325, 46170),
     # 0 = dummy ID unknown seq
     # new taxa based on Kleiner DB
-    Kleiner_taxIDs = [262724, 882, 176299, 228410, 44577, 926571, 323848, 12022, 1283336, 10754, 101570, 224308, 216596,
+    Kleiner_taxIDs_0 = [262724, 882, 176299, 228410, 44577, 926571, 323848, 12022, 1283336, 10754, 101570, 224308, 216596,
                       1004788, 266265, 266264, 99287, 1294143, 1149133, 3055, 1280, 1977402, 294, 83333,
                       536, 1407502]
-    # taxa bachelor thesis
-    Kleiner_taxIDs = [262724, 882, 176299, 228410, 44577, 926571, 323848, 12022, 1283336, 10754, 101570, 224308, 1041145,
+    # taxa bachelor thesis with woring
+    Kleiner_taxIDs_1 = [262724, 882, 176299, 228410, 44577, 926571, 323848, 12022, 1283336, 10754, 101570, 224308, 1041145,
                       1004788, 266265, 266264, 99287, 1302247, 1149133, 3055, 93061, 1977402, 1114970, 511145,
-                      536, 1407502, 1294143,
-                      1619948]
+                      536, 1407502, 1294143, 1619948]
+    # taxa bachelor thesis
+    # 46170, 216596 not in Kleiner_taxIDs_1, not in here: 1619948(Pseudomonas sp 21)
+    # no difference for result
+    Kleiner_taxIDs = [536, 882, 44577, 228410, 323848, 46170, 93061, 224308, 99287, 511145, 176299, 216596, 1041145,
+                      262724, 266264, 266265, 1004788, 1114970, 1149133, 1294143, 1407502, 3055, 1302247, 926571,
+                      # virus
+                      10754, 101570, 1283336, 12022, 1977402]
+
+
     Tanca_taxIDs = [747, 5535, 655183, 1579, 1255, 4932, 1465, 1351, 562]
     if options.taxonset == 'kleiner':
         taxonIDs = Kleiner_taxIDs
@@ -213,11 +230,11 @@ def main():
     else:
         accs = get_accs_from_df(path_to_x_tandem_result_tsv, db_type, decoy_tag)
 
-
     if db_type == 'ncbi':
-        all_taxa_of_level_set = set(flatten_list(taxon_graph.get_all_taxids(taxonIDs, options.level)))
+         # all_taxa_of_level_set = set(flatten_list(taxon_graph.get_all_taxids(taxonIDs, options.level)))
+         # acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set)
         # acc_in_tsv_2_taxa_set_dict
-        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set)
+        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type)
     else:
         acc_2_taxon_dict = get_acc2taxon_dict(db_path, db_type, accs)
     accs.clear()
@@ -236,12 +253,12 @@ def main():
         acc_2_taxon_dict.update(add_acc_2_taxon_dict)
     for k, v in acc_2_taxon_dict.items():
         if v == 0 or v=='0':
-            print(k,v)
+            print('error in taxonGraph, taxon = root, accs:', k,v)
 
     psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
     reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)
-    print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')}... ")
-    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')), sep='\t')
+    print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')}... ")
+    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')), sep='\t')
 
 
 if __name__ == '__main__':

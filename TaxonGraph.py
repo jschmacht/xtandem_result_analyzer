@@ -110,8 +110,12 @@ class TaxonGraph():
                  """
         #check if level is really up, else take original taxID
         taxIDnew = taxID
-        while self.child_rank_dict[taxIDnew] == 'no rank':
-            taxIDnew = self.child_parent_dict.get(taxIDnew)
+        try :
+            while self.child_rank_dict[taxIDnew] == 'no rank':
+                taxIDnew = self.child_parent_dict.get(taxIDnew)
+        except KeyError:
+            print(f"taxID {taxIDnew} not in taxdump, continue...")
+            return (taxIDnew)
         # start taxID level higher, returned unchanged taxID
         if self.order[self.child_rank_dict[taxIDnew]] > self.order[level]:
             return taxID
