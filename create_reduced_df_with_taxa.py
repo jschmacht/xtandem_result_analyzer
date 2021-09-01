@@ -109,6 +109,7 @@ def get_ncbi_multiacc_to_accs_dict(ncbi_accs_from_file, db_path, db_type):
 
 def get_taxa_from_acc2taxid_files(db_path, db_type, all_accs, taxa=None):
     acc2tax_reader = ReadAccTaxon(db_path, db_type)
+    # only acc, taxa in target taxa (multiaccs file bring a lot unspecific taxa
     acc_2_taxon_dict = acc2tax_reader.read_acc2tax(all_accs, taxa)
     return acc_2_taxon_dict
 
@@ -231,10 +232,10 @@ def main():
         accs = get_accs_from_df(path_to_x_tandem_result_tsv, db_type, decoy_tag)
 
     if db_type == 'ncbi':
-         # all_taxa_of_level_set = set(flatten_list(taxon_graph.get_all_taxids(taxonIDs, options.level)))
-         # acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set)
+        all_taxa_of_level_set = set(flatten_list(taxon_graph.get_all_taxids(taxonIDs, options.level)))
+        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type, all_taxa_of_level_set)
         # acc_in_tsv_2_taxa_set_dict
-        acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type)
+        # acc_2_taxon_dict = get_ncbi_acc2taxon_dict(accs, db_path, db_type)
     else:
         acc_2_taxon_dict = get_acc2taxon_dict(db_path, db_type, accs)
     accs.clear()

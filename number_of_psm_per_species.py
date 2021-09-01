@@ -25,18 +25,19 @@ class PsmNumberPerTaxIDs():
         if custom_taxa:
             self.taxIDs = custom_taxa
         self.level = level
-        self.reduced_df_in_fdr = self.get_df_in_fdr(path_to_reduced_df, fdr)
+        self.column_of_interest = f'taxID_{level}' if level != 'subspecies' else 'taxID'
+        self.reduced_df_in_fdr, self.psm_count = self.get_df_in_fdr_and_psm_count(path_to_reduced_df, level, fdr)
         self.nb_all_identified_spectra_for_uniprot = len(set(self.reduced_df_in_fdr["Title"]))
         self.taxon_graph = HelperMethod.load_taxa_graph(Path("/home/jules/Documents/databases/databases_tax2proteome/taxdump.tar.gz"))
 
-    def get_df_in_fdr(self, path_to_reduced_df, fdr):
-        reduced_df = ReferenceWriter.read_csv_with_generic_function(path_to_reduced_df,['Protein', 'Hyperscore', 'decoy', 'taxID'])
-        fdr_pos_result, number_psm_result, number_decoy_result, double_spectra_result, score_last_item_result =PSM_FDR.determine_FDR_position(reduced_df, fdr, True)
-        return number_psm_result, reduced_df[0:fdr_pos_result]
+    def get_df_in_fdr_and_psm_count(self, path_to_reduced_df, level, fdr):
+        reduced_df = ReferenceWriter.read_csv_with_generic_function(path_to_reduced_df,['Protein', 'Hyperscore', 'decoy', 'taxID', self.column_of_interest])
+        fdr_pos, number_psms, decoys =PSM_FDR.determine_FDR_position(reduced_df, fdr, True)
+        return reduced_df[0:fdr_pos], number_psms
 
     def count_spectra_per_taxon(self, reduced_df_in_fdr, level, taxon=None, taxa_list=None):
         spectra = set()
-        for spectrum_ID, taxa_set in zip(list(reduced_df_in_fdr['Title']), list(reduced_df_in_fdr[f'taxID_{level}'])):
+        for spectrum_ID, taxa_set in zip(list(reduced_df_in_fdr['Title']), list(reduced_df_in_fdr[self.column_of_interest])):
             if taxon:
                 if taxon in taxa_set:
                     spectra.add(spectrum_ID)
@@ -44,7 +45,7 @@ class PsmNumberPerTaxIDs():
                 for taxon in taxa_list:
                     if taxon in taxa_set:
                         spectra.add(spectrum_ID)
-        return (spectra)
+        return spectra
 
     def count_all_taxa(self, level):
         result_spectra_dict = {}
@@ -52,9 +53,9 @@ class PsmNumberPerTaxIDs():
             taxon = self.taxon_graph.find_level_up(taxon, level)
             result_spectra_dict[str(taxon)]=self.count_spectra_per_taxon(self.reduced_df_in_fdr, taxon)
         if self.taxa_set == 'kleiner':
-            result_spectra_dict['virus']=set()
+            result_spectra_dict['viruses']=set()
             for virus_taxon in self.kleiner_taxIDs_virus:
-                result_spectra_dict['virus'].union(result_spectra_dict[str(virus_taxon)])
+                result_spectra_dict['viruses'].union(result_spectra_dict[str(virus_taxon)])
         return result_spectra_dict
 
     def flatten_list(self, l):
@@ -70,8 +71,33 @@ class PsmNumberPerTaxIDs():
 
     def count_row_by_row(self):
         taxID_to_spectra_dict = defaultdict(set)
-        for spectrum, taxID_set in zip(self.reduced_df_in_fdr['Title'], self.reduced_df_in_fdr[f'taxID_{self.level}']):
+        for spectrum, taxID_set in zip(self.reduced_df_in_fdr['Title'], self.reduced_df_in_fdr[self.column_of_interest]):
             for taxID in taxID_set:
                 taxID_to_spectra_dict[taxID].add(spectrum)
-        print(taxID_to_spectra_dict.keys())
+        return taxID_to_spectra_dict
 
+    def get_percentage(self, taxID_to_spectra_dict):
+        taxID_to_percentage_dict = {}
+        for taxID, spectra_set in taxID_to_spectra_dict.items():
+            taxID_to_percentage_dict[taxID] = len(spectra_set)/self.psm_count*100
+        return taxID_to_percentage_dict
+
+    def get_virus_spectra(self, taxID_to_spectra_dict):
+        for taxID in self.kleiner_taxIDs_virus:
+            try:
+                taxID_to_spectra_dict['viruses'] =  taxID_to_spectra_dict['viruses'].union(taxID_to_spectra_dict[taxID])
+            except KeyError:
+                print(taxID)
+                continue
+        return taxID_to_spectra_dict
+
+def main():
+    uniprot_species_reduced = "/home/jules/Documents/Tax2Proteome/benchmarking/results_reanalysis_uniprot/Run1_U1_2000ng_uniprot_species_nr.t.xml_reduced.tsv"
+    obj = PsmNumberPerTaxIDs('kleiner', uniprot_species_reduced, 'species')
+
+    taxID_to_spectra_dict = obj.count_row_by_row()
+    taxID_to_percentage_dict = obj.get_percentage(taxID_to_spectra_dict)
+    print(taxID_to_percentage_dict)
+
+if __name__ == '__main__':
+    main()
