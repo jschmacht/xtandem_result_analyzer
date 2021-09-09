@@ -1,8 +1,9 @@
 from pathlib import Path
-from ReadAccTaxon import ReadAccTaxon
-from TaxonGraph import TaxonGraph
 import pickle
 import pandas as pd
+
+from TaxonGraph import TaxonGraph
+
 
 class Multiaccs():
     def __init__(self, path_to_multiacc_file, path_to_multiaccs_taxids_file):
@@ -99,7 +100,7 @@ class HelperMethod():
         taxid_level2 = taxongraph.find_level_up(taxid, level2)
         df = df[[columnname, f'taxID_{level1}', f'taxID_{level2}']]
         df = df[taxid_level1 in f'taxID_{level1}' | taxid_level2 in f'taxID_{level1}']
-        return df[[df[columnname] == taxid_level]]
+        return df[[df[columnname] == taxid_level1]]
 
     @staticmethod
     def create_df_with_all_spectra_and_dfs_to_compare(all_spectra_list, df1, spectra_column_1, df2, spectra_column_2):

@@ -286,7 +286,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Read xtandem output .tsv')
     parser.add_argument('-i', '--input', dest='input', default=None, help='xtandem tsv with columns:'
-                                '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore, Evalue')
+                                '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore')
     parser.add_argument('-p', '--path', dest='path', default=None, help='Path to folder with acc2tax files. '
                                                                         '(Uniprot: acc2tax_uniprot, NCBI: pdb/prot.accession2taxid, '
                                                                         'Custom: acc2tax_custom')

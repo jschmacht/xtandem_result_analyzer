@@ -3,7 +3,6 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 import ast
-from create_PSM_df import PSM_FDR
 
 
 class ReferenceWriter():

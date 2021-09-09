@@ -1,9 +1,5 @@
-from pathlib import Path
 import pandas as pd
-import argparse
-import pickle
-from collections import defaultdict
-from handling_acc_files import Multiaccs
+
 
 class PSM_FDR:
     def __init__(self, path_to_file, path_to_crap, decoy_tag):
@@ -39,8 +35,8 @@ class PSM_FDR:
         return self.sorted_xtandem_df
 
     def group_df(self, level):
-        reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
-            {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda x: set(x),
+        reduced_df = self.sorted_xtandem_df.groupby(['Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
+            {'Protein': lambda acc: set(acc), 'decoy': lambda x: set(x),
              'taxID': lambda taxid: set(taxid), f'taxID_{level}': lambda x: set(x)})
         return reduced_df
 
@@ -123,8 +119,8 @@ class PSM_FDR:
         self.sorted_xtandem_df[f'taxID_{level}'] = \
             self.sorted_xtandem_df['taxID'].apply(lambda taxID_set: self.get_taxa_set_of_specified_level(taxon_graph, taxID_set, level))
         print('reducing df')
-        reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
-            {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda decoy: set(decoy),
+        reduced_df = self.sorted_xtandem_df.groupby(['Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
+            {'Protein': lambda acc: set(acc), 'decoy': lambda decoy: set(decoy),
              'taxID': lambda taxid_sets: self.flatten_set(taxid_sets),
              f'taxID_{level}': lambda taxid_sets: self.flatten_set(taxid_sets)})
         return reduced_df

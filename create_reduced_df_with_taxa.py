@@ -164,7 +164,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Read xtandem output .tsv')
     parser.add_argument('-i', '--input', dest='input', default=None, help='xtandem tsv with columns:'
-                                                                          '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore, Evalue')
+                                                                          '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore')
     parser.add_argument('-p', '--path', dest='path', default=None, help='Path to folder with acc2tax files. '
                                                                         '(Uniprot: acc2tax_uniprot, NCBI: pdb/prot.accession2taxid, '
                                                                         'Custom: acc2tax_custom')
@@ -259,7 +259,7 @@ def main():
     psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
     reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)
     print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')}... ")
-    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')), sep='\t')
+    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')), sep='\t')
 
 
 if __name__ == '__main__':

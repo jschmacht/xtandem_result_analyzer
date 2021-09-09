@@ -4,7 +4,7 @@ import argparse
 from handling_acc_files import HelperMethod
 from create_reference_from_tsv_and_pepxml import ReferenceWriter
 from collections import defaultdict
-from create_PSM_df import PSM_FDR
+
 
 class DeterminatorSpecificitySensitivityFirstTry():
 
@@ -130,7 +130,7 @@ class DeterminatorSpecificitySensitivityFirstTry():
 def main():
     parser = argparse.ArgumentParser(description='Read xtandem output .tsv')
     parser.add_argument('-i', '--input', dest='input', default=None, help='xtandem reduced.tsv with columns:'
-                                                                          '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore, Evalue,'
+                                                                          '[spectra_file, Spectrum ID, Peptide, Protein Accession + Description, Hyperscore'
                                                                           'or pep.xml file for create_ref')
     parser.add_argument('-r', '--reference', dest='reference', default=None, help='Path to reference tsv')
     parser.add_argument('-g', '--tax_graph', dest='tax_graph', help='Path to taxdump.tar.gz')

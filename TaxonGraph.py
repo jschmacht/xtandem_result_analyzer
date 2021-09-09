@@ -58,7 +58,7 @@ class TaxonGraph():
             self.parent_child_graph.update(dict.fromkeys(leaves, []))
 
         except tarfile.ReadError as e:
-            print("Can not read taxdump.tar.gz File. Without taxon tree, program quits.", exc_info=True)
+            print("Can not read taxdump.tar.gz File. Without taxon tree, program quits.")
             exit(1)
 
     # find for taxID all child tax IDs and returns them

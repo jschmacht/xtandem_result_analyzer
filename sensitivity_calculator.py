@@ -184,7 +184,7 @@ class SensitivityAndSpecificity():
         return {item for sublist in s for item in sublist}
 
     def get_df_with_identified_spectra_in_result_df_but_not_in_reference_df(self):
-        result_df = self.result_df[0:self.fdr_pos_result].groupby(["#SpecFile", 'Title'], as_index=False).agg(
+        result_df = self.result_df[0:self.fdr_pos_result].groupby([ 'Title'], as_index=False).agg(
             {'Peptide': lambda pep: set(pep), 'Hyperscore': lambda score: set(score), 'Protein': lambda acc: self.flatten_set(acc),
               'decoy': lambda x: self.flatten_set(x),
              'taxID': lambda taxid: self.flatten_set(taxid), f'taxID_{self.level}': lambda x: self.flatten_set(x)})

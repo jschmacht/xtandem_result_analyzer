@@ -34,8 +34,8 @@ class PSM_FDR:
                                                 taxon_graph.find_level_up(row['taxID'], level)
                                                 if row['taxID'] != 'DECOY' and row['taxID'] != 0 else 'DECOY',
                                                                                 axis=1)
-        reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
-            {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda x: set(x),
+        reduced_df = self.sorted_xtandem_df.groupby(['Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
+            {'Protein': lambda acc: set(acc), 'decoy': lambda x: set(x),
              'taxID': lambda taxid: set(taxid), f'taxID_{level}': lambda x: set(x)})
         return reduced_df
 
@@ -74,8 +74,8 @@ class PSM_FDR:
                                                                                              and int(taxID) != 0
                                                                                           else 'DECOY/CRAP'
                                                                                           for taxID in taxID_set})
-        reduced_df = self.sorted_xtandem_df.groupby(["#SpecFile", 'Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
-            {'Protein': lambda acc: set(acc), 'EValue': lambda x: set(list(x)), 'decoy': lambda decoy: set(decoy),
+        reduced_df = self.sorted_xtandem_df.groupby(['Title', 'Peptide', 'Hyperscore'], as_index=False).agg(
+            {'Protein': lambda acc: set(acc), 'decoy': lambda decoy: set(decoy),
              'taxID': lambda taxid_sets: self.flatten_set(taxid_sets),
              f'taxID_{level}': lambda taxid_sets: self.flatten_set(taxid_sets)})
         return reduced_df
