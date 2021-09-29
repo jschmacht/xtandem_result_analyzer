@@ -4,11 +4,12 @@ import argparse
 from create_reference_from_tsv_and_pepxml import ReferenceWriter
 from sensitivity_calculator import SensitivityAndSpecificity
 
+
 def write_output(path_to_result_file, fdr, specificity, sensitivity, TP, FP, TN, FN, s_u_s, df_only_in_result_identified_spectra, ignore_unidentified=False):
     if not ignore_unidentified:
-        output_file=f"{str(path_to_result_file)}_{fdr}_sensitivity"
+        output_file=f"{str(path_to_result_file)}_{fdr}_sensitivity_new"
     else:
-        output_file=f"{str(path_to_result_file)}_ignore_unclassified_{fdr}_sensitivity"
+        output_file=f"{str(path_to_result_file)}_ignore_unclassified_{fdr}_sensitivity_new"
     with open(output_file, 'w') as output:
         output.write('FDR:' + '\t' + str(fdr) + '\n')
         output.write('specificity:'+ '\t'  + str(specificity) + '\n')

@@ -151,6 +151,9 @@ def get_ncbi_acc2taxon_dict(ncbi_accs_from_file, db_path, db_type, taxa=None):
     multiacc2acc_dict.clear()
     return acc_in_tsv_2_taxa_set_dict
 
+def remove_spectra_of_charge_one_from_reduced_tsv(df):
+    charged_spectra = [spectrum.split('.')[-1] != '' for spectrum in df['Title']]
+    return df[charged_spectra]
 
 def main():
     """
@@ -258,8 +261,9 @@ def main():
 
     psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
     reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)
+    reduced_df = remove_spectra_of_charge_one_from_reduced_tsv(reduced_df)
     print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')}... ")
-    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_reduced.tsv')), sep='\t')
+    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')), sep='\t')
 
 
 if __name__ == '__main__':

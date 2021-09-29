@@ -50,7 +50,7 @@ class mgf_parser:
         #           "minPeaksPerSpectrum": 5,
         #           "useNoiseSuppression": false,
         # default settings: passing spectra = 163113
-        # without charge one: passing spectra = 88666
+        # without charge one: passing spectra = 88666 (xtandem used 88279)
         reader = mgf.MGF(source=self.spectra_file, use_header=True, convert_arrays=2, read_charges=True, dtype=None,
                                 encoding='utf-8', read_ions=False)
         removed_spectra= set()

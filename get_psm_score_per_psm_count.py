@@ -5,7 +5,7 @@ from create_PSM_df import PSM_FDR
 def get_psm_score_count(level_list, file_list, in_fdr=True, fdr=0.05):
     result = {}
     for level, file in zip(level_list, file_list):
-        result_df = ReferenceWriter.read_csv_with_generic_function(file, ['Hyperscore', 'decoy'])
+        result_df = ReferenceWriter.read_csv_with_generic_function(file, ['Hyperscore', 'decoy'], remove_one_charged_spectra=True)
         result_df = result_df[['Title',  'decoy']]
         if in_fdr:
             fdr_pos, number_psm, number_decoy, double_spectra, score_last_item = PSM_FDR.determine_FDR_position(result_df, fdr, True)

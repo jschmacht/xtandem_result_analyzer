@@ -117,12 +117,19 @@ class ReferenceWriter():
             self.write_Kleiner_spectrum_reference_file(spectra_to_accs_dict, custom_acc2tax_file_based_on_Kleiner_DB)
 
     @staticmethod
-    def read_csv_with_generic_function(path_to_df, conv_columns):
+    def remove_spectra_of_charge_one_from_reduced_tsv(df):
+        charged_spectra = [spectrum.split('.')[-1] != '' for spectrum in df['Title']]
+        return df[charged_spectra]
+
+    @staticmethod
+    def read_csv_with_generic_function(path_to_df, conv_columns, remove_one_charged_spectra=True):
         generic_read_csv_function = lambda x: ast.literal_eval(x)
         conv_dict = {}
         for column in conv_columns:
             conv_dict[column] = generic_read_csv_function
         df = pd.read_csv(str(path_to_df), sep='\t', converters=conv_dict)
+        if remove_one_charged_spectra:
+            df = ReferenceWriter.remove_spectra_of_charge_one_from_reduced_tsv(df)
         return df
 
 
