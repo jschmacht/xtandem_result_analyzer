@@ -173,7 +173,7 @@ class PSM_FDR:
         return [True if True in decoy_set else False for decoy_set in decoy_column]
 
     @staticmethod
-    def determine_FDR_position(sorted_xtandem_df, fdr, is_decoy_column_set, decoy_column_name='decoy'):
+    def determine_FDR_position(sorted_xtandem_df, fdr, is_decoy_column_set=True, decoy_column_name='decoy'):
         """
         :param fdr: false discovery rate, for example 0.01
         """
@@ -206,9 +206,12 @@ class PSM_FDR:
                     hits += 1
             else:
                 ## TODO or elem[1] == {TRUE} ? what to do with mixed
-                if True in elem[1]:
+                if elem[1] == {True, False}:
                     decoy += 1
-                else:
+                    hits += 1
+                elif  elem[1] == {True}:
+                    decoy += 1
+                elif  elem[1] == {False}:
                     hits += 1
             if decoy / (hits + decoy) > fdr and FDR_position_not_set:
                 fdr_pos = hits + decoy - 1 + number_multiple_identified_spectra
