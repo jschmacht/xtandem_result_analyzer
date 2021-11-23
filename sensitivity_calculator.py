@@ -161,7 +161,7 @@ class SensitivityAndSpecificity():
         # FN: not identified in result, but identified in referernce
         df_FN = df_taxid[self.check_for_FN(df_taxid.taxID, df_taxid.Ref_taxID_DB)]
         FN=len(set(df_FN.Title.tolist()))
-
+        # FP
         df_FP = df_taxid_level[self.check_for_FP(df_taxid_level[f'taxID_{self.level}'].tolist(),
                                                  df_taxid_level[f'Ref_taxID_{self.level}'].tolist())]
         FP = len(set(df_FP.Title.tolist()))

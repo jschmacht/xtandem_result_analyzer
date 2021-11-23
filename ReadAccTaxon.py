@@ -135,6 +135,7 @@ class ReadAccTaxon:
         :param threads:
         :return:
         """
+        path_to_uniprot_accs = "/home/jules/Documents/Metaproteomics/databases/databases_tax2proteome/acc2tax_uniprot"
         acc_taxon_dict={}
         global accs
         global taxa
@@ -147,7 +148,7 @@ class ReadAccTaxon:
         # chunks = list of all chunks list tuples: (entry point to db, number of chars to be read)
         chunks = []
         if self.db_type == 'uniprot' or self.db_type == 'swissprot':
-            for chunk in self.read_in_chunks(self.path_to_folder / 'acc2tax_uniprot'):
+            for chunk in self.read_in_chunks(path_to_uniprot_accs):
                 chunks.append(chunk)
         elif self.db_type == 'ncbi':
             for chunk in self.read_in_chunks(self.path_to_folder / 'prot.accession2taxid'):

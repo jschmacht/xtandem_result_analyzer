@@ -132,4 +132,9 @@ class ReferenceWriter():
             df = ReferenceWriter.remove_spectra_of_charge_one_from_reduced_tsv(df)
         return df
 
-
+    @staticmethod
+    def read_tsv(path_to_df, remove_one_charged_spectra=True):
+        df = pd.read_csv(str(path_to_df), sep='\t')
+        if remove_one_charged_spectra:
+            df = ReferenceWriter.remove_spectra_of_charge_one_from_reduced_tsv(df)
+        return df

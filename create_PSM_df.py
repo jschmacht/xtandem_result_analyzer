@@ -68,7 +68,7 @@ class PSM_FDR:
                     return 'CRAP'
                 else:
                     print('DECOY/CRAP- protein accs: ', protein_acc)
-                    return 'DECOY/CRAP'
+                    return 'CRAP'
 
     def create_PSM_dataframe_for_uniprot_accs(self, acc2tax_dict, taxon_graph, level):
         self.sorted_xtandem_df['Protein'] = self.sorted_xtandem_df['Protein'].apply(lambda protein_acc: protein_acc.split()[0])
@@ -138,6 +138,7 @@ class PSM_FDR:
         :return: Hyperscore sorted dataframe, Protein with highest Hyperscore first, Title = spectra_file_spectraID
         """
         xtandem_df = pd.read_csv(str(self.path_to_file), delimiter='\t')
+        print('readed')
         xtandem_df['Protein'] = xtandem_df['Protein'].apply(lambda acc: acc.strip())
         # change spectra Title
         xtandem_df['Title'] = xtandem_df['Title'].apply(lambda row: row.split(' File')[0])

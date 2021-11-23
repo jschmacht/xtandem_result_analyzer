@@ -100,7 +100,7 @@ def remove_accs_with_unsupported_taxa(multi_acc_2_taxon_dict, taxa):
 
 
 def get_ncbi_multiacc_to_accs_dict(ncbi_accs_from_file, db_path, db_type):
-    path_to_multiaccs = '/home/jules/Documents/databases/databases_tax2proteome/multispecies_acc'
+    path_to_multiaccs = '/home/jules/Documents/Metaproteomics/databases/databases_tax2proteome/multispecies_acc'
     # key = first acc in result tsv, value: all accs
     multacc_reader = ReadAccTaxon(db_path, db_type, path_to_multiaccs)
     multiacc2acc_dict = multacc_reader.read_multispecies_accs(ncbi_accs_from_file)
@@ -126,8 +126,11 @@ def create_acc_from_file_2_taxa_set_dict(ncbi_accs_from_file, multiacc2acc_dict,
                 except KeyError:
                     continue
         else:
-            acc_in_tsv_2_taxa_set_dict[acc].add(int(acc_2_taxon_dict[acc]))
-            del acc_2_taxon_dict[acc]
+            try:
+                acc_in_tsv_2_taxa_set_dict[acc].add(int(acc_2_taxon_dict[acc]))
+                del acc_2_taxon_dict[acc]
+            except KeyError:
+                print('key_error_acc: ', acc)
     return acc_in_tsv_2_taxa_set_dict
 
 
@@ -212,6 +215,7 @@ def main():
 
 
     Tanca_taxIDs = [747, 5535, 655183, 1579, 1255, 4932, 1465, 1351, 562]
+    taxonIDs = []
     if options.taxonset == 'kleiner':
         taxonIDs = Kleiner_taxIDs
         levels = ['subspecies', 'species', 'genus', 'family', 'order', 'superkingdom']

@@ -25,7 +25,7 @@ class PsmNumberPerTaxIDs():
         if custom_taxa:
             self.taxIDs = custom_taxa
         self.level = level
-        self.column_of_interest = f'taxID_{level}' if level != 'subspecies' else 'taxID'
+        self.column_of_interest = f'taxID_{level}' if level != 'subspecies' else 'taxID_species'
         self.reduced_df_in_fdr, self.psm_count = self.get_df_in_fdr_and_psm_count(path_to_reduced_df, level, fdr)
         self.nb_all_identified_spectra_for_uniprot = len(set(self.reduced_df_in_fdr["Title"]))
         self.taxon_graph = HelperMethod.load_taxa_graph(Path("/home/jules/Documents/databases/databases_tax2proteome/taxdump.tar.gz"))
@@ -96,6 +96,7 @@ def main():
     obj = PsmNumberPerTaxIDs('kleiner', uniprot_species_reduced, 'species')
 
     taxID_to_spectra_dict = obj.count_row_by_row()
+    print(taxID_to_spectra_dict)
     taxID_to_percentage_dict = obj.get_percentage(taxID_to_spectra_dict)
     print(taxID_to_percentage_dict)
 
