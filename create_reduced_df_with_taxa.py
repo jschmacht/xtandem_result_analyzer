@@ -189,6 +189,7 @@ def main():
     # parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.01, help='FDR-rate, default  = 0.01')
     parser.add_argument('-y', '--decoy', dest='decoy', default='REVERSED', help='Decoy_tag.')
     parser.add_argument('-x', '--threads', dest='threads', type=int, action="store", help='Number of threads.')
+    parser.add_argument('-r', '--remove', dest='remove', type=bool, action="store_true", help='remove spectra with one count charge')
 
     options = parser.parse_args()
     # not in Kleiner DB: 536: Chromobacterium violaceum, 1407502: Stenotrophomonas maltophilia SeITE02
@@ -230,6 +231,7 @@ def main():
     path_to_x_tandem_result_tsv = Path(options.input)
     path_to_crap = Path(options.crap)
     decoy_tag = options.decoy
+    remove_spectra_of_charge_one = options.remove
     taxon_graph = HelperMethod.load_taxa_graph(Path(options.tax_graph))
 
     # acc_2_taxon_dict for identification file identified accs
@@ -265,9 +267,10 @@ def main():
 
     psm = PSM_FDR(path_to_x_tandem_result_tsv, path_to_crap, decoy_tag)
     reduced_df = psm.create_PSM_dataframe(db_type, options.level, taxon_graph, acc_2_taxon_dict)
-    reduced_df = remove_spectra_of_charge_one_from_reduced_tsv(reduced_df)
-    print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')}... ")
-    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_new_reduced.tsv')), sep='\t')
+    if remove_spectra_of_charge_one:
+        reduced_df = remove_spectra_of_charge_one_from_reduced_tsv(reduced_df)
+    print(f"writing data frame to {path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_without_one_reduced.tsv')}... ")
+    reduced_df.to_csv(str(path_to_x_tandem_result_tsv.parent.joinpath(path_to_x_tandem_result_tsv.stem + '_without_one_reduced.tsv')), sep='\t')
 
 
 if __name__ == '__main__':

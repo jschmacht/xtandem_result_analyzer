@@ -40,8 +40,8 @@ def main():
     options = parser.parse_args()
 
     path_to_result_file = Path(options.result)
-    path_to_reference = Path('/home/jules/Documents/Tax2Proteome/benchmarking/results_searchgui_kleiner_db/Run1_U1_2000ng.t.xml_reduced_reference.tsv')
-    path_to_spectra = Path('/home/jules/Documents/Tax2Proteome/benchmarking/spectra/Run1_U1_2000ng.mgf')
+    path_to_reference = Path('/home/jules/Documents/Metaproteomics/Tax2Proteome/benchmarking/results_searchgui_kleiner_db/Run1_U1_2000ng.t.xml_reduced_reference.tsv')
+    path_to_spectra = Path('/home/jules/Documents/Metaproteomics/Tax2Proteome/benchmarking/spectra/Run1_U1_2000ng.mgf')
     result_df = ReferenceWriter.read_csv_with_generic_function(path_to_result_file,
                                                                ['Protein', 'Hyperscore', 'decoy', 'taxID', f'taxID_{options.level}'])
     reference_df = ReferenceWriter.read_csv_with_generic_function(path_to_reference,
