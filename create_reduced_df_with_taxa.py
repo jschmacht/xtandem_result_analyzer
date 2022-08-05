@@ -189,7 +189,7 @@ def main():
     # parser.add_argument('-f', '--fdr', dest='fdr', type=float, default=0.01, help='FDR-rate, default  = 0.01')
     parser.add_argument('-y', '--decoy', dest='decoy', default='REVERSED', help='Decoy_tag.')
     parser.add_argument('-x', '--threads', dest='threads', type=int, action="store", help='Number of threads.')
-    parser.add_argument('-r', '--remove', dest='remove', type=bool, action="store_true", help='remove spectra with one count charge')
+    parser.add_argument('-r', '--remove', dest='remove', action="store_true", help='remove spectra with one count charge')
 
     options = parser.parse_args()
     # not in Kleiner DB: 536: Chromobacterium violaceum, 1407502: Stenotrophomonas maltophilia SeITE02
